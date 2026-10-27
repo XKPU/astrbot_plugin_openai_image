@@ -2,7 +2,6 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/XKPU/astrbot_plugin_openai_image)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-green)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-AstrBot-purple)](https://github.com/Soulter/AstrBot)
 [![Author](https://img.shields.io/badge/author-K__PU-orange)](https://github.com/XKPU)
 
