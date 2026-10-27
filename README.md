@@ -86,20 +86,6 @@ views/
   config/          # 可视化配置视图
 ```
 
-## 示例
-
-`models` 写法：
-
-```json
-["gpt-image-1", "dall-e-3:2", {"id": "flux-1", "retries": 1}]
-```
-
-`extra_request_body`：
-
-```json
-{ "quality": "high" }
-```
-
 常见响应路径：
 
 - `data` — 兼容 `data[].url` 或 `data[].b64_json`
