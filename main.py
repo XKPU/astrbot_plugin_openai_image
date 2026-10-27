@@ -1,163 +1,20 @@
-import base64
-import binascii
-import json
-from typing import Any
+"""OpenAI-compatible image generation and editing plugin (entry point)."""
 
-import aiohttp
+from __future__ import annotations
+
 from mcp import types as mcp_types
 
-from astrbot.api import AstrBotConfig, FunctionTool, logger
+from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent
 from astrbot.api.message_components import Image
 from astrbot.api.star import Context, Star, register
+from astrbot.api.web import request as web_request
 
-GENERATE_TOOL_NAME = "openai_image_generate"
-EDIT_TOOL_NAME = "openai_image_edit"
-
-_IMAGE_URL_KEYS = (
-    "b64_json",
-    "base64",
-    "image_base64",
-    "url",
-    "image_url",
-    "image",
-)
-_IMAGE_CONTAINER_KEYS = ("data", "images", "result", "output")
-
-
-class OpenAIImageFunctionTool(FunctionTool):
-    """FunctionTool subclass kept in this module for correct plugin ownership."""
-
-
-def _error_result(message: str) -> mcp_types.CallToolResult:
-    return mcp_types.CallToolResult(
-        content=[mcp_types.TextContent(type="text", text=message)],
-    )
-
-
-def _walk_response(node: Any, parts: list[str]) -> list[Any]:
-    """Resolve a dotted response path, fanning out across list values."""
-    if not parts:
-        return [node]
-    part = parts[0]
-    if isinstance(node, list):
-        if part.isdigit():
-            index = int(part)
-            if 0 <= index < len(node):
-                return _walk_response(node[index], parts[1:])
-            return []
-        if part in ("*", ""):
-            results: list[Any] = []
-            for item in node:
-                results.extend(_walk_response(item, parts[1:]))
-            return results
-        results = []
-        for item in node:
-            results.extend(_walk_response(item, parts))
-        return results
-    if isinstance(node, dict):
-        if part in node:
-            return _walk_response(node[part], parts[1:])
-        return []
-    return []
-
-
-def _collect_image_values(node: Any, output: list[str]) -> None:
-    if isinstance(node, str):
-        output.append(node)
-    elif isinstance(node, list):
-        for item in node:
-            _collect_image_values(item, output)
-    elif isinstance(node, dict):
-        for key in _IMAGE_URL_KEYS:
-            value = node.get(key)
-            if isinstance(value, str) and value.strip():
-                output.append(value)
-                return
-        for key in _IMAGE_CONTAINER_KEYS:
-            if key in node:
-                _collect_image_values(node[key], output)
-                return
-
-
-def _extract_images(payload: Any, path: str) -> list[str]:
-    """Extract image URL/base64 strings from the configured response path."""
-    normalized = path.strip().replace("[", ".").replace("]", "") if path else ""
-    parts = [part for part in normalized.split(".") if part]
-    values: list[str] = []
-    for node in _walk_response(payload, parts):
-        _collect_image_values(node, values)
-
-    deduplicated: list[str] = []
-    seen: set[str] = set()
-    for value in values:
-        value = value.strip()
-        if value and value not in seen:
-            seen.add(value)
-            deduplicated.append(value)
-    return deduplicated
-
-
-def _guess_mime(base64_data: str) -> str:
-    head = base64_data[:32]
-    if head.startswith("iVBOR"):
-        return "image/png"
-    if head.startswith("/9j/"):
-        return "image/jpeg"
-    if head.startswith("R0lGOD"):
-        return "image/gif"
-    if head.startswith("UklGR"):
-        return "image/webp"
-    if head.startswith("Qk"):
-        return "image/bmp"
-    try:
-        raw = base64.b64decode(base64_data[:64] + "===", validate=False)
-    except (binascii.Error, ValueError):
-        return "image/png"
-    if raw.startswith(b"\x89PNG"):
-        return "image/png"
-    if raw.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if raw.startswith(b"GIF8"):
-        return "image/gif"
-    if raw.startswith(b"RIFF") and raw[8:12] == b"WEBP":
-        return "image/webp"
-    if raw.startswith(b"BM"):
-        return "image/bmp"
-    return "image/png"
-
-
-def _split_image_value(value: str) -> tuple[str, str, str | None]:
-    """Return (kind, data, mime) where kind is "url" or "base64"."""
-    stripped = value.strip()
-    if stripped.startswith(("http://", "https://")):
-        return "url", stripped, None
-    if stripped.startswith("data:"):
-        header, _, data = stripped.partition(",")
-        mime = header[5:].split(";", 1)[0] or None
-        return "base64", "".join(data.split()), mime
-    if stripped.startswith("base64://"):
-        stripped = stripped[9:]
-    data = "".join(stripped.split())
-    return "base64", data, _guess_mime(data)
-
-
-def _to_form_value(value: Any) -> str:
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    return str(value)
-
-
-def _extension_for_mime(mime: str) -> str:
-    return {
-        "image/png": "png",
-        "image/jpeg": "jpg",
-        "image/webp": "webp",
-        "image/gif": "gif",
-        "image/bmp": "bmp",
-    }.get(mime, "png")
+from .src import api_client, web_config
+from .src import tools as tool_defs
+from .src.config_access import free_ratio, model_tags, ratio_options
+from .src.constants import EDIT_TOOL_NAME, GENERATE_TOOL_NAME, POLISH_TOOL_NAME
+from .src.response_utils import error_result
 
 
 @register(
@@ -172,75 +29,36 @@ class OpenAIImagePlugin(Star):
         self.config = config or {}
 
     async def initialize(self) -> None:
+        # Stamp the template key so the declarative settings page accepts
+        # sources saved through the visual config view.
+        if web_config.ensure_template_keys(self.config):
+            self.config.save_config()
         manager = self.context.get_llm_tool_manager()
-        manager.remove_func(GENERATE_TOOL_NAME)
-        manager.remove_func(EDIT_TOOL_NAME)
+        for name in (GENERATE_TOOL_NAME, EDIT_TOOL_NAME, POLISH_TOOL_NAME):
+            manager.remove_func(name)
 
-        tools: list[FunctionTool] = []
-        if self.config.get("enable_generation", True):
-            tools.append(
-                OpenAIImageFunctionTool(
-                    name=GENERATE_TOOL_NAME,
-                    description=(
-                        "Generate one or more images from a text prompt using an "
-                        "OpenAI-compatible image API. Use this when the user asks "
-                        "you to draw, create, or generate an image."
-                    ),
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "prompt": {
-                                "type": "string",
-                                "description": (
-                                    "A detailed description of the image to generate."
-                                ),
-                            },
-                        },
-                        "required": ["prompt"],
-                    },
-                    handler=self.generate_image,
-                ),
-            )
-        if self.config.get("enable_edit", True):
-            tools.append(
-                OpenAIImageFunctionTool(
-                    name=EDIT_TOOL_NAME,
-                    description=(
-                        "Edit or transform an existing image using a text prompt "
-                        "with an OpenAI-compatible image API. If the user attached "
-                        "an image and did not provide an image URL, leave the image "
-                        "parameter empty to use the attached image."
-                    ),
-                    parameters={
-                        "type": "object",
-                        "properties": {
-                            "prompt": {
-                                "type": "string",
-                                "description": (
-                                    "Instructions describing how to edit the image."
-                                ),
-                            },
-                            "image": {
-                                "type": "string",
-                                "description": (
-                                    "Optional image URL, data URI, or base64 string. "
-                                    "Leave empty to use the first image attached to "
-                                    "the user's message."
-                                ),
-                            },
-                            "mask": {
-                                "type": "string",
-                                "description": (
-                                    "Optional mask image URL, data URI, or base64 "
-                                    "string."
-                                ),
-                            },
-                        },
-                        "required": ["prompt"],
-                    },
-                    handler=self.edit_image,
-                ),
-            )
+        tools = tool_defs.build_tools(
+            enable_generation=self.config.get("enable_generation", True)
+            and bool(model_tags(self.config, "generation")),
+            enable_edit=self.config.get("enable_edit", True)
+            and bool(model_tags(self.config, "edit")),
+            enable_prompt_polish=self.config.get("enable_prompt_polish", True),
+            generation_ratios=None
+            if free_ratio(self.config, "generation")
+            else ratio_options(self.config, "generation"),
+            edit_ratios=None
+            if free_ratio(self.config, "edit")
+            else ratio_options(self.config, "edit"),
+            generation_tags=model_tags(self.config, "generation"),
+            edit_tags=model_tags(self.config, "edit"),
+        )
+        for tool in tools:
+            if tool.name == GENERATE_TOOL_NAME:
+                tool.handler = self.generate_image
+            elif tool.name == EDIT_TOOL_NAME:
+                tool.handler = self.edit_image
+            elif tool.name == POLISH_TOOL_NAME:
+                tool.handler = self.polish_prompt
 
         if tools:
             self.context.add_llm_tools(*tools)
@@ -249,65 +67,67 @@ class OpenAIImagePlugin(Star):
                 ", ".join(tool.name for tool in tools),
             )
         else:
-            logger.warning("Both OpenAI image generation and editing are disabled.")
+            logger.warning("All OpenAI image plugin features are disabled.")
+        # Register the config API even when every tool is off, so the
+        # dashboard view can still read and restore the configuration.
+        self._register_web_apis()
 
     async def terminate(self) -> None:
         manager = self.context.get_llm_tool_manager()
-        manager.remove_func(GENERATE_TOOL_NAME)
-        manager.remove_func(EDIT_TOOL_NAME)
+        for name in (GENERATE_TOOL_NAME, EDIT_TOOL_NAME, POLISH_TOOL_NAME):
+            manager.remove_func(name)
 
-    def _api_settings(self) -> tuple[str, dict[str, str]]:
-        base = (
-            str(self.config.get("api_base") or "https://api.openai.com/v1")
-            .strip()
-            .rstrip("/")
+    def _register_web_apis(self) -> None:
+        """Expose config read/write endpoints for the dashboard config view."""
+        self.context.register_web_api(
+            "/astrbot_plugin_openai_image/config",
+            self._web_get_config,
+            ["GET"],
+            "获取插件配置",
         )
-        headers: dict[str, str] = {}
-        api_key = str(self.config.get("api_key") or "").strip()
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        return base, headers
+        self.context.register_web_api(
+            "/astrbot_plugin_openai_image/config",
+            self._web_save_config,
+            ["POST"],
+            "保存插件配置",
+        )
+        self.context.register_web_api(
+            "/astrbot_plugin_openai_image/models",
+            self._web_list_models,
+            ["POST"],
+            "拉取来源的可用模型列表",
+        )
 
-    def _timeout(self) -> aiohttp.ClientTimeout:
+    async def _web_list_models(self):
+        body = await web_request.json(default=None)
+        if not isinstance(body, dict):
+            body = {}
+        api_base = str(body.get("api_base") or "").strip().rstrip("/")
+        if not api_base:
+            return {"status": "error", "message": "缺少 API 地址", "data": {}}
+        keys = body.get("api_keys")
+        if not isinstance(keys, list):
+            keys = []
+        resolved_keys = [str(key).strip() for key in keys if str(key).strip()]
         try:
-            seconds = float(self.config.get("timeout", 300))
-        except (TypeError, ValueError):
-            seconds = 300
-        return aiohttp.ClientTimeout(total=max(seconds, 1))
+            models = await api_client.fetch_models(api_base, resolved_keys)
+        except Exception as exc:
+            logger.warning("Model list request failed for %s: %s", api_base, exc)
+            return {"status": "error", "message": str(exc), "data": {}}
+        return {"status": "ok", "data": {"models": models}}
 
-    def _payload(self, prompt: str) -> dict[str, Any]:
-        extra = self.config.get("extra_request_body") or {}
-        payload = dict(extra) if isinstance(extra, dict) else {}
-        payload["model"] = str(self.config.get("model") or "gpt-image-1").strip()
-        payload["prompt"] = prompt
-        return payload
+    async def _web_get_config(self):
+        return {"status": "ok", "data": dict(self.config)}
 
-    async def _fetch_bytes(
-        self,
-        session: aiohttp.ClientSession,
-        url: str,
-    ) -> tuple[bytes, str]:
-        async with session.get(url) as response:
-            response.raise_for_status()
-            body = await response.read()
-            mime = response.headers.get("Content-Type", "").split(";", 1)[0].strip()
-        if not mime or not mime.startswith("image/"):
-            mime = _guess_mime(base64.b64encode(body).decode())
-        return body, mime
-
-    async def _load_image_bytes(
-        self,
-        session: aiohttp.ClientSession,
-        value: str,
-    ) -> tuple[bytes, str]:
-        kind, data, mime = _split_image_value(value)
-        if kind == "url":
-            return await self._fetch_bytes(session, data)
-        try:
-            body = base64.b64decode(data, validate=False)
-        except (binascii.Error, ValueError) as exc:
-            raise ValueError("The provided image is not valid Base64 data.") from exc
-        return body, mime or _guess_mime(data)
+    async def _web_save_config(self):
+        body = await web_request.json(default=None)
+        if not isinstance(body, dict) or not isinstance(body.get("config"), dict):
+            return {"status": "error", "message": "无效的配置数据", "data": {}}
+        self.config.update(body["config"])
+        self.config.save_config()
+        web_config.log_config_update(web_request.username)
+        await self.initialize()
+        return {"status": "ok", "data": dict(self.config)}
 
     async def _attached_image(self, event: AstrMessageEvent) -> str:
         for component in event.get_messages():
@@ -318,77 +138,37 @@ class OpenAIImagePlugin(Star):
                     logger.warning("Failed to read the attached image: %s", exc)
         return ""
 
-    async def _handle_response(
+    async def polish_prompt(
         self,
-        session: aiohttp.ClientSession,
-        response: aiohttp.ClientResponse,
+        event: AstrMessageEvent,
+        prompt: str,
     ) -> mcp_types.CallToolResult:
-        text = await response.text()
-        if response.status < 200 or response.status >= 300:
-            return _error_result(
-                f"Image API request failed with HTTP {response.status}: {text[:2000]}",
-            )
+        umo = event.unified_msg_origin if event else None
         try:
-            payload: Any = json.loads(text) if text else {}
-        except json.JSONDecodeError:
-            return _error_result(
-                f"Image API returned non-JSON content: {text[:2000]}",
+            provider = self.context.get_using_provider(umo)
+        except Exception as exc:
+            return error_result(
+                f"Failed to resolve the chat model provider: {exc}",
             )
-
-        path = str(self.config.get("response_image_path") or "data")
-        image_values = _extract_images(payload, path)
-        if not image_values:
-            return _error_result(
-                f"No image found in response field '{path}'. "
-                f"Response preview: {text[:2000]}",
+        if provider is None:
+            return error_result(
+                "No chat model provider is available to polish the prompt.",
             )
-
-        content: list[mcp_types.ContentBlock] = []
-        notes: list[str] = [f"Returned {len(image_values)} image(s)."]
-        for index, value in enumerate(image_values, start=1):
-            kind, data, mime = _split_image_value(value)
-            if kind == "url":
-                notes.append(f"Image {index} URL: {data}")
-                try:
-                    body, mime = await self._fetch_bytes(session, data)
-                except Exception as exc:
-                    notes.append(
-                        f"Image {index} could not be downloaded: {exc}. "
-                        "Send it to the user using the URL above."
-                    )
-                    continue
-                data = base64.b64encode(body).decode()
-            content.append(
-                mcp_types.ImageContent(
-                    type="image",
-                    data=data,
-                    mimeType=mime or _guess_mime(data),
-                ),
-            )
-            notes.append(f"Image {index} is attached.")
-
-        content.insert(0, mcp_types.TextContent(type="text", text="\n".join(notes)))
-        return mcp_types.CallToolResult(content=content)
+        return await api_client.polish_prompt(provider, prompt)
 
     async def generate_image(
         self,
         event: AstrMessageEvent,
         prompt: str,
+        model: str = "",
+        aspect_ratio: str = "",
     ) -> mcp_types.CallToolResult:
-        base, headers = self._api_settings()
-        headers["Content-Type"] = "application/json"
-        payload = self._payload(prompt)
-        try:
-            async with aiohttp.ClientSession(timeout=self._timeout()) as session:
-                async with session.post(
-                    f"{base}/images/generations",
-                    headers=headers,
-                    json=payload,
-                ) as response:
-                    return await self._handle_response(session, response)
-        except Exception as exc:
-            logger.exception("Image generation request failed")
-            return _error_result(f"Image generation request failed: {exc}")
+        return await api_client.generate_image(
+            self.config,
+            prompt,
+            aspect_ratio,
+            model_tag=model,
+        )
 
     async def edit_image(
         self,
@@ -396,55 +176,20 @@ class OpenAIImagePlugin(Star):
         prompt: str,
         image: str = "",
         mask: str = "",
+        model: str = "",
+        aspect_ratio: str = "",
     ) -> mcp_types.CallToolResult:
         source = (image or "").strip() or await self._attached_image(event)
         if not source:
-            return _error_result(
+            return error_result(
                 "No image was provided. Attach an image to the message or pass "
                 "the image parameter.",
             )
-
-        base, headers = self._api_settings()
-        model = str(self.config.get("model") or "gpt-image-1").strip()
-        extra = self.config.get("extra_request_body") or {}
-        if not isinstance(extra, dict):
-            extra = {}
-
-        try:
-            async with aiohttp.ClientSession(timeout=self._timeout()) as session:
-                image_bytes, image_mime = await self._load_image_bytes(session, source)
-                form = aiohttp.FormData()
-                form.add_field("model", model)
-                form.add_field("prompt", prompt)
-                form.add_field(
-                    "image",
-                    image_bytes,
-                    filename=f"image.{_extension_for_mime(image_mime)}",
-                    content_type=image_mime,
-                )
-                if mask.strip():
-                    mask_bytes, mask_mime = await self._load_image_bytes(
-                        session,
-                        mask,
-                    )
-                    form.add_field(
-                        "mask",
-                        mask_bytes,
-                        filename=f"mask.{_extension_for_mime(mask_mime)}",
-                        content_type=mask_mime,
-                    )
-                reserved = {"model", "prompt", "image", "mask"}
-                for key, value in extra.items():
-                    if str(key) in reserved:
-                        continue
-                    form.add_field(str(key), _to_form_value(value))
-
-                async with session.post(
-                    f"{base}/images/edits",
-                    headers=headers,
-                    data=form,
-                ) as response:
-                    return await self._handle_response(session, response)
-        except Exception as exc:
-            logger.exception("Image edit request failed")
-            return _error_result(f"Image edit request failed: {exc}")
+        return await api_client.edit_image(
+            self.config,
+            prompt,
+            source,
+            mask,
+            aspect_ratio,
+            model_tag=model,
+        )

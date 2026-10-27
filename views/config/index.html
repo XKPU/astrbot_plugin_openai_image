@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenAI 图像插件配置</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <nav class="side-nav" aria-label="Sections">
+      <a href="#section-sources"><span class="nav-dot"></span><span data-i18n="navSources">服务源</span></a>
+      <a href="#section-model-order"><span class="nav-dot"></span><span data-i18n="navModelOrder">模型顺序</span></a>
+      <a href="#section-prompts"><span class="nav-dot"></span><span data-i18n="navPrompts">提示词</span></a>
+      <a href="#section-toggles"><span class="nav-dot"></span><span data-i18n="navToggles">功能开关</span></a>
+      <a href="#section-params"><span class="nav-dot"></span><span data-i18n="navParams">生成参数</span></a>
+      <a href="#section-return"><span class="nav-dot"></span><span data-i18n="navReturn">返回信息</span></a>
+    </nav>
+
+    <main class="content">
+      <header class="page-head">
+        <h1 data-i18n="title">OpenAI 图像插件配置</h1>
+        <p class="subtitle" data-i18n="subtitle"></p>
+        <div class="toolbar">
+          <button id="btn-reload" class="btn" type="button" data-i18n="reload">重新加载</button>
+          <button id="btn-save" class="btn primary" type="button" data-i18n="save">保存配置</button>
+        </div>
+      </header>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <section id="section-sources">
+        <div class="section-head">
+          <h2 data-i18n="sectionSources">服务源（Sources）</h2>
+          <button id="btn-add-source" class="btn small" type="button" data-i18n="addSource">+ 添加服务源</button>
+        </div>
+        <p class="hint" data-i18n="sourcesHint"></p>
+        <div id="sources" class="source-list"></div>
+      </section>
+
+      <section id="section-model-order">
+        <div class="section-head">
+          <h2 data-i18n="sectionModelOrder">模型使用顺序（全局）</h2>
+          <div class="toolbar">
+            <button id="btn-sync-tags" class="btn small" type="button" data-i18n="syncTags">同步来源模型</button>
+            <button id="btn-add-tag" class="btn small" type="button" data-i18n="addTag">+ 添加标签</button>
+          </div>
+        </div>
+        <p class="hint" data-i18n="modelOrderHint"></p>
+        <div id="model-order-list" class="order-list"></div>
+      </section>
+
+      <section id="section-prompts">
+        <h2 data-i18n="sectionPrompts">提示词后缀（全局）</h2>
+        <div class="fields">
+          <div class="field">
+            <label data-i18n="generationPrompt">生图提示词后缀</label>
+            <textarea id="generation_prompt" rows="3"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="editPrompt">编辑提示词后缀</label>
+            <textarea id="edit_prompt" rows="3"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-toggles">
+        <h2 data-i18n="sectionToggles">功能开关</h2>
+        <div class="switch-grid">
+          <label class="switch-item">
+            <input id="enable_generation" type="checkbox" />
+            <span data-i18n="enableGenerationTool">启用图像生成工具</span>
+          </label>
+          <label class="switch-item">
+            <input id="enable_edit" type="checkbox" />
+            <span data-i18n="enableEditTool">启用图像编辑工具</span>
+          </label>
+          <label class="switch-item">
+            <input id="enable_prompt_polish" type="checkbox" />
+            <span data-i18n="enablePromptPolish">启用提示词润色工具</span>
+          </label>
+        </div>
+      </section>
+
+      <section id="section-params">
+        <h2 data-i18n="sectionParams">全局生成参数</h2>
+        <div class="fields">
+          <div class="field">
+            <label data-i18n="globalRatios">可用比例 / 尺寸（每行一个）</label>
+            <textarea id="available_aspect_ratios" rows="3" placeholder="1024x1024&#10;1536x1024&#10;1024x1536"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="globalRatioField">比例请求字段名</label>
+            <input id="aspect_ratio_field" type="text" placeholder="size" />
+          </div>
+          <div class="field">
+            <label data-i18n="responsePath">响应图片路径</label>
+            <input id="response_image_path" type="text" placeholder="data" />
+          </div>
+          <div class="field">
+            <label data-i18n="globalTimeout">全局超时（秒）</label>
+            <input id="timeout" type="number" min="1" step="1" />
+          </div>
+          <div class="field wide">
+            <label data-i18n="globalExtraBody">额外请求体参数（JSON，全局）</label>
+            <textarea id="extra_request_body" rows="4" placeholder='{ "quality": "high" }'></textarea>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-return">
+        <h2 data-i18n="sectionReturn">工具返回信息</h2>
+        <div class="switch-grid">
+          <label class="switch-item">
+            <input id="return_elapsed" type="checkbox" />
+            <span data-i18n="returnElapsed">返回请求用时</span>
+          </label>
+          <label class="switch-item">
+            <input id="return_id" type="checkbox" />
+            <span data-i18n="returnId">返回请求 ID</span>
+          </label>
+          <label class="switch-item">
+            <input id="return_model" type="checkbox" />
+            <span data-i18n="returnModel">返回模型（来源/模型ID）</span>
+          </label>
+          <label class="switch-item">
+            <input id="return_retries" type="checkbox" />
+            <span data-i18n="returnRetries">返回重试次数</span>
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

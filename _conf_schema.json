@@ -1,35 +1,158 @@
 {
-  "api_base": {
-    "description": "API 端点（到 /v1）",
-    "type": "string",
-    "default": "https://api.openai.com/v1",
-    "hint": "例如 https://api.openai.com/v1。插件会自动拼接 /images/generations 和 /images/edits。",
-    "obvious_hint": true
+  "sources": {
+    "description": "图像 API 来源",
+    "type": "template_list",
+    "default": [],
+    "hint": "可添加多个来源。每个来源可配置多个模型与多个 API Key；请求失败时按 重试次数 → Key 顺序 → 来源顺序 → 模型顺序 切换。",
+    "templates": {
+      "openai_compatible": {
+        "name": "OpenAI 兼容来源",
+        "hint": "填写到 /v1 的端点，插件会自动拼接 /images/generations 与 /images/edits。",
+        "display_item": "name",
+        "items": {
+          "name": {
+            "description": "来源名称",
+            "type": "string",
+            "default": "",
+            "hint": "同时用作模型选择标签的前缀（来源名称/模型ID）。"
+          },
+          "api_base": {
+            "description": "API 端点（到 /v1）",
+            "type": "string",
+            "default": "https://api.openai.com/v1"
+          },
+          "models": {
+            "description": "模型列表",
+            "type": "list",
+            "default": [],
+            "hint": "每项为模型 ID，可用 \"模型ID:重试次数\" 或 {\"id\":..., \"retries\":...} 指定失败重试次数（默认 0）。列表顺序即使用顺序，模型标签为 来源名称/模型ID。"
+          },
+          "api_keys": {
+            "description": "API Key 列表",
+            "type": "list",
+            "default": [],
+            "secret": true,
+            "hint": "按顺序轮询，失败切换下一个。留空时不发送 Authorization 请求头。"
+          },
+          "enable_generation": {
+            "description": "此来源参与图像生成",
+            "type": "bool",
+            "default": true
+          },
+          "enable_edit": {
+            "description": "此来源参与图像编辑",
+            "type": "bool",
+            "default": true
+          },
+          "aspect_ratios": {
+            "description": "此来源可用的比例/尺寸",
+            "type": "list",
+            "default": [],
+            "hint": "留空使用全局 available_aspect_ratios。"
+          },
+          "aspect_ratio_field": {
+            "description": "此来源的比例请求字段名",
+            "type": "string",
+            "default": "",
+            "hint": "留空使用全局 aspect_ratio_field（默认 size）。"
+          },
+          "validate_aspect_ratio": {
+            "description": "校验比例/尺寸取值",
+            "type": "bool",
+            "default": true,
+            "hint": "关闭后此来源不参与比例枚举计算，工具的 aspect_ratio 参数变为自由字符串，任意尺寸原样透传。"
+          },
+          "generation_prompt": {
+            "description": "生图提示词后缀覆盖",
+            "type": "text",
+            "default": "",
+            "hint": "留空使用全局 generation_prompt。"
+          },
+          "edit_prompt": {
+            "description": "编辑提示词后缀覆盖",
+            "type": "text",
+            "default": "",
+            "hint": "留空使用全局 edit_prompt。"
+          },
+          "extra_request_body": {
+            "description": "此来源的额外请求体参数",
+            "type": "dict",
+            "items": {},
+            "default": {},
+            "hint": "与全局 extra_request_body 合并，同名键以此处为准。"
+          },
+          "timeout": {
+            "description": "此来源的请求超时（秒）",
+            "type": "int",
+            "default": 0,
+            "hint": "0 表示使用全局 timeout。"
+          },
+          "response_image_path": {
+            "description": "此来源的响应图片路径",
+            "type": "string",
+            "default": "",
+            "hint": "留空使用全局 response_image_path（默认 data）。支持 data / data.url / data.0.url / data.*.url 等写法。"
+          },
+          "enabled": {
+            "description": "启用此来源",
+            "type": "bool",
+            "default": true
+          }
+        }
+      }
+    }
   },
-  "api_key": {
-    "description": "API Key",
-    "type": "string",
+  "generation_prompt": {
+    "description": "生图提示词后缀（全局）",
+    "type": "text",
     "default": "",
-    "secret": true,
-    "hint": "留空时不发送 Authorization 请求头，适用于无需鉴权的本地端点。"
+    "hint": "会追加到 LLM 传入的生图提示词之后，可用于统一画风或质量要求。来源覆盖优先于全局。"
   },
-  "model": {
-    "description": "模型 ID",
-    "type": "string",
-    "default": "gpt-image-1",
-    "hint": "例如 gpt-image-1、dall-e-3 或你的 OpenAI 兼容服务提供的模型 ID。"
+  "edit_prompt": {
+    "description": "编辑提示词后缀（全局）",
+    "type": "text",
+    "default": "",
+    "hint": "会追加到 LLM 传入的图片编辑提示词之后，可用于统一编辑要求。来源覆盖优先于全局。"
   },
   "enable_generation": {
     "description": "启用图像生成工具",
     "type": "bool",
     "default": true,
-    "hint": "启用后向 LLM 注册 openai_image_generate 工具。"
+    "hint": "启用后向 LLM 注册 openai_image_generate 工具（还需有参与生成的来源）。"
   },
   "enable_edit": {
     "description": "启用图像编辑工具",
     "type": "bool",
     "default": true,
-    "hint": "启用后向 LLM 注册 openai_image_edit 工具。"
+    "hint": "启用后向 LLM 注册 openai_image_edit 工具（还需有参与编辑的来源）。"
+  },
+  "enable_prompt_polish": {
+    "description": "启用提示词润色工具",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后向 LLM 注册 openai_image_polish_prompt 工具，使用当前对话模型润色图像提示词。"
+  },
+  "model_order": {
+    "description": "模型使用顺序（全局）",
+    "type": "list",
+    "default": [],
+    "hint": "填写模型标签（来源名称/模型ID，也可只写模型 ID）。列表中的标签按此顺序优先执行，未列出的模型按来源与模型列表顺序跟在后面。留空则完全按来源/模型配置顺序。"
+  },
+  "available_aspect_ratios": {
+    "description": "可用的比例/尺寸（全局）",
+    "type": "list",
+    "default": [
+      "1024x1024",
+      "1536x1024",
+      "1024x1536"
+    ],
+    "hint": "来源未单独配置时的回退选项，并原样写入 aspect_ratio_field 指定的字段。OpenAI 官方接口请使用 1024x1024 这类尺寸；接受 1:1 等比例的兼容接口可填写 1:1 并把字段改为 aspect_ratio。"
+  },
+  "aspect_ratio_field": {
+    "description": "比例写入的请求字段名（全局）",
+    "type": "string",
+    "default": "size",
+    "hint": "默认写入 size。若端点使用 aspect_ratio 字段，请改为 aspect_ratio。来源可单独覆盖。"
   },
   "response_image_path": {
     "description": "响应中的图像字段路径",
@@ -39,20 +162,41 @@
     "obvious_hint": true
   },
   "extra_request_body": {
-    "description": "额外请求体参数",
+    "description": "额外请求体参数（全局）",
     "type": "dict",
     "items": {},
     "default": {},
-    "hint": "会合并进生成请求的 JSON 请求体；编辑时作为额外的 multipart 表单字段。例如 {\"size\": \"1024x1024\", \"quality\": \"high\"}。"
+    "hint": "会合并进生成请求的 JSON 请求体；编辑时作为额外的 multipart 表单字段。来源可单独覆盖同名键。"
   },
   "timeout": {
-    "description": "请求超时（秒）",
+    "description": "请求超时（秒，全局）",
     "type": "int",
     "default": 300,
     "slider": {
       "min": 10,
       "max": 900,
       "step": 10
-    }
+    },
+    "hint": "来源可单独设置超时覆盖此值。"
+  },
+  "return_elapsed": {
+    "description": "工具返回请求用时",
+    "type": "bool",
+    "default": false
+  },
+  "return_id": {
+    "description": "工具返回请求 ID",
+    "type": "bool",
+    "default": false
+  },
+  "return_model": {
+    "description": "工具返回使用的模型（来源/模型ID）",
+    "type": "bool",
+    "default": false
+  },
+  "return_retries": {
+    "description": "工具返回重试次数",
+    "type": "bool",
+    "default": false
   }
 }

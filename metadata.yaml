@@ -1,4 +1,4 @@
-name: astrbot_plugin_openai_image@K_PU
+name: astrbot_plugin_openai_image
 display_name: OpenAI 图像生成与编辑
 desc: 可自定义的 OpenAI 兼容图像生成与图像编辑插件
 version: v1.0.0
