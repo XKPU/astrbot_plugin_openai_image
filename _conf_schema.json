@@ -1,0 +1,58 @@
+{
+  "api_base": {
+    "description": "API 端点（到 /v1）",
+    "type": "string",
+    "default": "https://api.openai.com/v1",
+    "hint": "例如 https://api.openai.com/v1。插件会自动拼接 /images/generations 和 /images/edits。",
+    "obvious_hint": true
+  },
+  "api_key": {
+    "description": "API Key",
+    "type": "string",
+    "default": "",
+    "secret": true,
+    "hint": "留空时不发送 Authorization 请求头，适用于无需鉴权的本地端点。"
+  },
+  "model": {
+    "description": "模型 ID",
+    "type": "string",
+    "default": "gpt-image-1",
+    "hint": "例如 gpt-image-1、dall-e-3 或你的 OpenAI 兼容服务提供的模型 ID。"
+  },
+  "enable_generation": {
+    "description": "启用图像生成工具",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后向 LLM 注册 openai_image_generate 工具。"
+  },
+  "enable_edit": {
+    "description": "启用图像编辑工具",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后向 LLM 注册 openai_image_edit 工具。"
+  },
+  "response_image_path": {
+    "description": "响应中的图像字段路径",
+    "type": "string",
+    "default": "data",
+    "hint": "使用点号路径，例如 data、data.url、data.0.url、data.*.url。支持 URL、Data URI 或 Base64，会自动识别。",
+    "obvious_hint": true
+  },
+  "extra_request_body": {
+    "description": "额外请求体参数",
+    "type": "dict",
+    "items": {},
+    "default": {},
+    "hint": "会合并进生成请求的 JSON 请求体；编辑时作为额外的 multipart 表单字段。例如 {\"size\": \"1024x1024\", \"quality\": \"high\"}。"
+  },
+  "timeout": {
+    "description": "请求超时（秒）",
+    "type": "int",
+    "default": 300,
+    "slider": {
+      "min": 10,
+      "max": 900,
+      "step": 10
+    }
+  }
+}
