@@ -31,5 +31,5 @@
 - `_conf_schema.json` 扩展为多源模板列表格式
 - `metadata.yaml` 更新插件元信息
 
-[v1.0.1]: https://github.com/XKPU/astrbot_plugin_openai_image/releases/tag/v1.0.1
-[v1.0.0]: https://github.com/XKPU/astrbot_plugin_openai_image/releases/tag/v1.0.0
+[v1.0.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.0.0...v1.0.1
+[v1.0.0]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/aee1c1b7adc0af0cc483d50d9dff023af13ddb0c...v1.0.0
