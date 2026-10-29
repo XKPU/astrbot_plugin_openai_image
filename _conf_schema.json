@@ -63,13 +63,13 @@
             "hint": "关闭后此来源不参与比例枚举计算，工具的 aspect_ratio 参数变为自由字符串，任意尺寸原样透传。"
           },
           "generation_prompt": {
-            "description": "生图提示词后缀覆盖",
+            "description": "生图附加提示词（覆盖全局）",
             "type": "text",
             "default": "",
             "hint": "留空使用全局 generation_prompt。"
           },
           "edit_prompt": {
-            "description": "编辑提示词后缀覆盖",
+            "description": "编辑附加提示词（覆盖全局）",
             "type": "text",
             "default": "",
             "hint": "留空使用全局 edit_prompt。"
@@ -103,13 +103,13 @@
     }
   },
   "generation_prompt": {
-    "description": "生图提示词后缀（全局）",
+    "description": "附加生图提示词（全局）",
     "type": "text",
     "default": "",
     "hint": "会追加到 LLM 传入的生图提示词之后，可用于统一画风或质量要求。来源覆盖优先于全局。"
   },
   "edit_prompt": {
-    "description": "编辑提示词后缀（全局）",
+    "description": "全局编辑附加提示词",
     "type": "text",
     "default": "",
     "hint": "会追加到 LLM 传入的图片编辑提示词之后，可用于统一编辑要求。来源覆盖优先于全局。"

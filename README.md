@@ -19,7 +19,7 @@
 
 ## 配置
 
-### 服务源
+### API 来源
 
 通过 `sources` 列表配置多个 API 来源，支持多 Key 轮询与多模型回退。
 
@@ -34,7 +34,7 @@
 | `aspect_ratio_field` | 比例字段名，留空使用全局（默认 `size`） |
 | `validate_aspect_ratio` | 是否校验比例，关闭后任意尺寸原样透传 |
 | `response_image_path` | 响应图片字段路径，留空使用全局（默认 `data`） |
-| `generation_prompt` / `edit_prompt` | 提示词后缀，留空使用全局 |
+| `generation_prompt` / `edit_prompt` | 附加提示词（留空使用全局） |
 | `extra_request_body` | 额外请求体参数，与全局合并（来源优先） |
 | `timeout` | 请求超时秒数，`0` 使用全局 `timeout` |
 | `enabled` | 是否启用该来源 |
@@ -45,7 +45,7 @@
 
 | 配置项 | 说明 |
 | --- | --- |
-| `generation_prompt` / `edit_prompt` | 全局提示词后缀 |
+| `generation_prompt` / `edit_prompt` | 全局附加提示词 |
 | `enable_generation` / `enable_edit` / `enable_prompt_polish` | 功能开关 |
 | `available_aspect_ratios` | 全局比例/尺寸选项 |
 | `aspect_ratio_field` | 比例字段名（默认 `size`） |
@@ -63,8 +63,8 @@
 
 管理面板插件详情中点击「打开视图」进入 `views/config/` 页面，支持：
 
-- 服务源增删改、模型排序、多 Key 管理（密码框掩码）
-- 从 API 拉取模型并批量添加
+- API 来源增删改、模型排序、多 Key 管理（密码框掩码）
+- 从 API 获取模型并批量添加
 - 全局模型使用顺序拖拽排序
 - 每来源高级设置与全局表单化编辑
 - 右侧导航快速跳转，跟随面板语言与主题

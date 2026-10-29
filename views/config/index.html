@@ -8,9 +8,9 @@
   </head>
   <body>
     <nav class="side-nav" aria-label="Sections">
-      <a href="#section-sources"><span class="nav-dot"></span><span data-i18n="navSources">服务源</span></a>
+      <a href="#section-sources"><span class="nav-dot"></span><span data-i18n="navSources">API 来源</span></a>
       <a href="#section-model-order"><span class="nav-dot"></span><span data-i18n="navModelOrder">模型顺序</span></a>
-      <a href="#section-prompts"><span class="nav-dot"></span><span data-i18n="navPrompts">提示词</span></a>
+      <a href="#section-prompts"><span class="nav-dot"></span><span data-i18n="navPrompts">附加提示词</span></a>
       <a href="#section-toggles"><span class="nav-dot"></span><span data-i18n="navToggles">功能开关</span></a>
       <a href="#section-params"><span class="nav-dot"></span><span data-i18n="navParams">生成参数</span></a>
       <a href="#section-return"><span class="nav-dot"></span><span data-i18n="navReturn">返回信息</span></a>
@@ -30,8 +30,8 @@
 
       <section id="section-sources">
         <div class="section-head">
-          <h2 data-i18n="sectionSources">服务源（Sources）</h2>
-          <button id="btn-add-source" class="btn small" type="button" data-i18n="addSource">+ 添加服务源</button>
+          <h2 data-i18n="sectionSources">API 来源</h2>
+          <button id="btn-add-source" class="btn small" type="button" data-i18n="addSource">+ 添加 API 来源</button>
         </div>
         <p class="hint" data-i18n="sourcesHint"></p>
         <div id="sources" class="source-list"></div>
@@ -50,14 +50,14 @@
       </section>
 
       <section id="section-prompts">
-        <h2 data-i18n="sectionPrompts">提示词后缀（全局）</h2>
+        <h2 data-i18n="sectionPrompts">全局附加提示词</h2>
         <div class="fields">
           <div class="field">
-            <label data-i18n="generationPrompt">生图提示词后缀</label>
+            <label data-i18n="generationPrompt">生图附加提示词</label>
             <textarea id="generation_prompt" rows="3"></textarea>
           </div>
           <div class="field">
-            <label data-i18n="editPrompt">编辑提示词后缀</label>
+            <label data-i18n="editPrompt">编辑附加提示词</label>
             <textarea id="edit_prompt" rows="3"></textarea>
           </div>
         </div>

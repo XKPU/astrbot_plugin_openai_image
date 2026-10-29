@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.0.1] - 2026-10-29
+
+### 变更
+
+- **UI 术语规范化**：优化可视化配置界面及配置描述的中英文表述
+- **README 与 CHANGELOG**：同步上述术语变更
+- **metadata.yaml**：更新插件描述
+
 ## [v1.0.0] - 2025-01-27
 
 ### 新增
@@ -23,4 +31,5 @@
 - `_conf_schema.json` 扩展为多源模板列表格式
 - `metadata.yaml` 更新插件元信息
 
+[v1.0.1]: https://github.com/XKPU/astrbot_plugin_openai_image/releases/tag/v1.0.1
 [v1.0.0]: https://github.com/XKPU/astrbot_plugin_openai_image/releases/tag/v1.0.0

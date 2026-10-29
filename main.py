@@ -95,7 +95,7 @@ class OpenAIImagePlugin(Star):
             "/astrbot_plugin_openai_image/models",
             self._web_list_models,
             ["POST"],
-            "拉取来源的可用模型列表",
+            "获取来源的可用模型列表",
         )
 
     async def _web_list_models(self):
