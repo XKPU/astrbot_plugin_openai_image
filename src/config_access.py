@@ -255,14 +255,29 @@ def generation_payload(
     model_id: str,
     prompt: str,
     aspect_ratio: str = "",
+    extra_args: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build the JSON body for an image generation request."""
+    """Build the JSON body for an image generation request.
+
+    Args:
+        config: The plugin configuration mapping.
+        source: The resolved source entry.
+        model_id: The model id to request.
+        prompt: The prompt text.
+        aspect_ratio: The aspect ratio or size to send, when validated.
+        extra_args: Command line arguments appended verbatim to the body.
+
+    Returns:
+        The JSON request body.
+    """
     payload = merged_extra(config, source)
     payload["model"] = model_id
     payload["prompt"] = prompt
     if aspect_ratio:
         field = source["aspect_ratio_field"] or ratio_field(config)
         payload[field] = aspect_ratio
+    if extra_args:
+        payload.update(extra_args)
     return payload
 
 

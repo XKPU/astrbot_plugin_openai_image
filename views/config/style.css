@@ -219,6 +219,7 @@ section h2 {
 input[type="text"],
 input[type="number"],
 input[type="password"],
+select,
 textarea {
   width: 100%;
   padding: 7px 10px;
@@ -230,6 +231,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent);
@@ -237,6 +239,13 @@ textarea:focus {
 
 textarea {
   resize: vertical;
+}
+
+.field input:disabled,
+.field textarea:disabled,
+.field select:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .field {

@@ -3,14 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OpenAI 图像插件配置</title>
+    <title>图像生成与编辑插件配置</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <nav class="side-nav" aria-label="Sections">
-      <a href="#section-sources"><span class="nav-dot"></span><span data-i18n="navSources">API 来源</span></a>
+      <a href="#section-sources"><span class="nav-dot"></span><span data-i18n="navSources">服务来源</span></a>
       <a href="#section-model-order"><span class="nav-dot"></span><span data-i18n="navModelOrder">模型顺序</span></a>
       <a href="#section-prompts"><span class="nav-dot"></span><span data-i18n="navPrompts">附加提示词</span></a>
+      <a href="#section-commands"><span class="nav-dot"></span><span data-i18n="navCommands">聊天命令</span></a>
+      <a href="#section-access"><span class="nav-dot"></span><span data-i18n="navAccess">区域管理</span></a>
       <a href="#section-toggles"><span class="nav-dot"></span><span data-i18n="navToggles">功能开关</span></a>
       <a href="#section-params"><span class="nav-dot"></span><span data-i18n="navParams">生成参数</span></a>
       <a href="#section-return"><span class="nav-dot"></span><span data-i18n="navReturn">返回信息</span></a>
@@ -18,7 +20,7 @@
 
     <main class="content">
       <header class="page-head">
-        <h1 data-i18n="title">OpenAI 图像插件配置</h1>
+        <h1 data-i18n="title">图像生成与编辑插件配置</h1>
         <p class="subtitle" data-i18n="subtitle"></p>
         <div class="toolbar">
           <button id="btn-reload" class="btn" type="button" data-i18n="reload">重新加载</button>
@@ -30,8 +32,8 @@
 
       <section id="section-sources">
         <div class="section-head">
-          <h2 data-i18n="sectionSources">API 来源</h2>
-          <button id="btn-add-source" class="btn small" type="button" data-i18n="addSource">+ 添加 API 来源</button>
+          <h2 data-i18n="sectionSources">服务来源</h2>
+          <button id="btn-add-source" class="btn small" type="button" data-i18n="addSource">+ 新增来源</button>
         </div>
         <p class="hint" data-i18n="sourcesHint"></p>
         <div id="sources" class="source-list"></div>
@@ -39,10 +41,10 @@
 
       <section id="section-model-order">
         <div class="section-head">
-          <h2 data-i18n="sectionModelOrder">模型使用顺序（全局）</h2>
+          <h2 data-i18n="sectionModelOrder">全局模型调用顺序</h2>
           <div class="toolbar">
             <button id="btn-sync-tags" class="btn small" type="button" data-i18n="syncTags">同步来源模型</button>
-            <button id="btn-add-tag" class="btn small" type="button" data-i18n="addTag">+ 添加标签</button>
+            <button id="btn-add-tag" class="btn small" type="button" data-i18n="addTag">+ 新增标签</button>
           </div>
         </div>
         <p class="hint" data-i18n="modelOrderHint"></p>
@@ -53,7 +55,7 @@
         <h2 data-i18n="sectionPrompts">全局附加提示词</h2>
         <div class="fields">
           <div class="field">
-            <label data-i18n="generationPrompt">生图附加提示词</label>
+            <label data-i18n="generationPrompt">图像生成附加提示词</label>
             <textarea id="generation_prompt" rows="3"></textarea>
           </div>
           <div class="field">
@@ -61,6 +63,110 @@
             <textarea id="edit_prompt" rows="3"></textarea>
           </div>
         </div>
+      </section>
+
+      <section id="section-commands">
+        <h2 data-i18n="sectionCommands">聊天命令</h2>
+        <p class="hint" data-i18n="commandsHint"></p>
+        <div class="switch-grid">
+          <label class="switch-item">
+            <input id="enable_commands" type="checkbox" />
+            <span data-i18n="enableCommands">启用聊天命令</span>
+          </label>
+          <label class="switch-item">
+            <input id="command_enable_polish" type="checkbox" />
+            <span data-i18n="commandEnablePolish">命令提示词润色</span>
+          </label>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label data-i18n="commandPrefix">命令触发前缀</label>
+            <input id="command_prefix" type="text" placeholder="/" />
+          </div>
+          <div class="field">
+            <label data-i18n="commandArgMode">追加参数模式</label>
+            <select id="command_arg_mode">
+              <option value="off" data-i18n="commandArgModeOff">禁止追加参数</option>
+              <option value="all" data-i18n="commandArgModeAll">允许追加任意参数</option>
+              <option value="listed" data-i18n="commandArgModeListed" selected>仅允许追加已配置的参数</option>
+            </select>
+          </div>
+          <div class="field">
+            <label data-i18n="commandAllowedArgs">允许追加的参数字段（每行一项）</label>
+            <textarea id="command_allowed_args" rows="3" placeholder="size"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="commandGenerationHead">图像生成命令头（每行一项）</label>
+            <textarea id="command_generation_head" rows="2" placeholder="t2i"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="commandEditHead">图像编辑命令头（每行一项）</label>
+            <textarea id="command_edit_head" rows="2" placeholder="i2i"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="commandPolishProvider">命令润色模型</label>
+            <select id="command_polish_provider"></select>
+          </div>
+        </div>
+        <p class="hint" data-i18n="commandArgsHint"></p>
+      </section>
+
+      <section id="section-access">
+        <h2 data-i18n="sectionAccess">区域管理</h2>
+        <p class="hint" data-i18n="accessHint"></p>
+        <div class="fields">
+          <div class="field">
+            <label data-i18n="accessGroupMode">群聊名单模式</label>
+            <select id="access_group_mode">
+              <option value="off" data-i18n="modeOff">不限制</option>
+              <option value="whitelist" data-i18n="modeWhitelist">仅白名单可用</option>
+              <option value="blacklist" data-i18n="modeBlacklist">黑名单不可用</option>
+            </select>
+          </div>
+          <div class="field">
+            <label data-i18n="accessUserMode">用户名单模式</label>
+            <select id="access_user_mode">
+              <option value="off" data-i18n="modeOff">不限制</option>
+              <option value="whitelist" data-i18n="modeWhitelist">仅白名单可用</option>
+              <option value="blacklist" data-i18n="modeBlacklist">黑名单不可用</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label data-i18n="accessGroupIds">群聊名单（每行一个群号）</label>
+            <textarea id="access_group_ids" rows="3" placeholder="123456789"></textarea>
+          </div>
+          <div class="field wide">
+            <label data-i18n="accessUserIds">用户名单（每行一个用户 ID）</label>
+            <textarea id="access_user_ids" rows="3" placeholder="10001"></textarea>
+          </div>
+          <div class="field">
+            <label data-i18n="quotaDailyLimit">每人每日调用上限（0 = 不限）</label>
+            <input id="quota_daily_limit" type="number" min="0" step="1" placeholder="0" />
+          </div>
+          <div class="field">
+            <label data-i18n="checkinBonus">每次签到补充的次数</label>
+            <input id="checkin_bonus" type="number" min="0" step="1" placeholder="1" />
+          </div>
+          <div class="field wide">
+            <label data-i18n="checkinHeads">签到命令头（每行一项）</label>
+            <textarea id="checkin_heads" rows="2" placeholder="checkin"></textarea>
+          </div>
+          <div class="field wide">
+            <label data-i18n="checkinSuccess">签到成功回复</label>
+            <textarea id="checkin_success" rows="2"></textarea>
+          </div>
+          <div class="field wide">
+            <label data-i18n="checkinFail">重复签到回复</label>
+            <textarea id="checkin_fail" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="switch-grid">
+          <label class="switch-item">
+            <input id="checkin_enabled" type="checkbox" />
+            <span data-i18n="checkinEnabled">启用签到补充额度</span>
+          </label>
+        </div>
+        <p class="hint" data-i18n="checkinHint"></p>
       </section>
 
       <section id="section-toggles">
@@ -85,15 +191,15 @@
         <h2 data-i18n="sectionParams">全局生成参数</h2>
         <div class="fields">
           <div class="field">
-            <label data-i18n="globalRatios">可用比例 / 尺寸（每行一个）</label>
+            <label data-i18n="globalRatios">可用宽高比 / 尺寸（每行一项）</label>
             <textarea id="available_aspect_ratios" rows="3" placeholder="1024x1024&#10;1536x1024&#10;1024x1536"></textarea>
           </div>
           <div class="field">
-            <label data-i18n="globalRatioField">比例请求字段名</label>
+            <label data-i18n="globalRatioField">宽高比写入字段</label>
             <input id="aspect_ratio_field" type="text" placeholder="size" />
           </div>
           <div class="field">
-            <label data-i18n="responsePath">响应图片路径</label>
+            <label data-i18n="responsePath">响应图像路径</label>
             <input id="response_image_path" type="text" placeholder="data" />
           </div>
           <div class="field">
@@ -101,7 +207,7 @@
             <input id="timeout" type="number" min="1" step="1" />
           </div>
           <div class="field wide">
-            <label data-i18n="globalExtraBody">额外请求体参数（JSON，全局）</label>
+            <label data-i18n="globalExtraBody">全局额外请求体字段（JSON）</label>
             <textarea id="extra_request_body" rows="4" placeholder='{ "quality": "high" }'></textarea>
           </div>
         </div>
@@ -112,7 +218,7 @@
         <div class="switch-grid">
           <label class="switch-item">
             <input id="return_elapsed" type="checkbox" />
-            <span data-i18n="returnElapsed">返回请求用时</span>
+            <span data-i18n="returnElapsed">返回请求耗时</span>
           </label>
           <label class="switch-item">
             <input id="return_id" type="checkbox" />
@@ -120,7 +226,7 @@
           </label>
           <label class="switch-item">
             <input id="return_model" type="checkbox" />
-            <span data-i18n="returnModel">返回模型（来源/模型ID）</span>
+            <span data-i18n="returnModel">返回模型标签</span>
           </label>
           <label class="switch-item">
             <input id="return_retries" type="checkbox" />
