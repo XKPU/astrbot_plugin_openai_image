@@ -8,7 +8,7 @@ from mcp import types as mcp_types
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.message_components import Image, Plain
+from astrbot.api.message_components import Image, Plain, Reply
 from astrbot.api.star import Context, Star, register
 from astrbot.api.web import request as web_request
 from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
@@ -19,6 +19,12 @@ from .src import commands as command_utils
 from .src import tools as tool_defs
 from .src.config_access import free_ratio, model_tags, ratio_options
 from .src.constants import EDIT_TOOL_NAME, GENERATE_TOOL_NAME, POLISH_TOOL_NAME
+from .src.reference_images import (
+    ReferenceImageError,
+    attachment_image_urls,
+    read_component_image,
+    read_image,
+)
 from .src.response_utils import error_result, result_text
 
 
@@ -193,16 +199,59 @@ class OpenAIImagePlugin(Star):
         Returns:
             The base64 payload, or an empty string when no image is present.
         """
-        for component in event.get_messages():
-            candidates = list(getattr(component, "chain", None) or [])
-            candidates.append(component)
-            for candidate in candidates:
-                if not isinstance(candidate, Image):
+        messages = event.get_messages() or []
+        replies = [item for item in messages if isinstance(item, Reply)]
+        errors: list[str] = []
+        groups = [("当前消息图片", messages)]
+        groups.extend(
+            ("引用图片", getattr(reply, "chain", None) or []) for reply in replies
+        )
+        for label, components in groups:
+            for component in components:
+                if not isinstance(component, Image):
                     continue
                 try:
-                    return await candidate.convert_to_base64()
-                except Exception as exc:
-                    logger.warning("Failed to read the attached image: %s", exc)
+                    data = await read_component_image(component)
+                    logger.debug("%s提取成功", label)
+                    return data
+                except ReferenceImageError as exc:
+                    errors.append(str(exc))
+                    logger.debug("%s提取失败：%s", label, exc)
+
+        # Only inspect text contained in Reply; never scan the user's input.
+        seen_urls: set[str] = set()
+        for reply in replies:
+            texts = [
+                item.text
+                for item in (getattr(reply, "chain", None) or [])
+                if isinstance(item, Plain)
+            ]
+            texts.append(getattr(reply, "message_str", None) or "")
+            for text in texts:
+                for url in attachment_image_urls(text):
+                    if url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+                    try:
+                        # Unlike explicit image parameters, attachment text must
+                        # contain a URL, never a local path or inline payload.
+                        if not url.lower().startswith(("http://", "https://")):
+                            raise ReferenceImageError("引用附件只支持 HTTP(S) 图片链接。")
+                        data = await read_image(url)
+                        logger.debug("QQ 引用附件文字解析成功，图片已读取")
+                        return data
+                    except ReferenceImageError as exc:
+                        errors.append(str(exc))
+                        logger.debug("QQ 引用附件图片读取失败：%s", exc)
+        if replies:
+            logger.debug("引用消息没有有效图片")
+        if errors:
+            raise ReferenceImageError("；".join(dict.fromkeys(errors)))
+        if replies:
+            raise ReferenceImageError(
+                "引用消息没有有效图片；可能引用了纯文字消息，或 QQOfficial "
+                "未提供图片组件、附件内容或可访问链接，仅凭消息 ID 无法获取原图。"
+            )
         return ""
 
     @filter.event_message_type(filter.EventMessageType.ALL)
@@ -399,12 +448,31 @@ class OpenAIImagePlugin(Star):
             denial = self._access_denial(event) or self._claim_quota(event)
             if denial:
                 return error_result(denial)
-        source = (image or "").strip() or await self._attached_image(event)
+        errors: list[str] = []
+        try:
+            source = await self._attached_image(event)
+        except ReferenceImageError as exc:
+            source = ""
+            errors.append(str(exc))
+        if not source and (image or "").strip():
+            try:
+                source = await read_image(image)
+            except ReferenceImageError as exc:
+                errors.append(str(exc))
+                logger.debug("显式参考图片读取失败：%s", exc)
         if not source:
-            return error_result(
-                "No image was provided. Attach an image to the message or pass "
-                "the image parameter.",
+            detail = "；".join(errors) if errors else (
+                "请在当前消息附图、引用包含图片的消息，或提供 image 参数。"
             )
+            return error_result(
+                "未获得有效参考图，未调用图片编辑 API。" + detail,
+            )
+        if (mask or "").strip():
+            try:
+                mask = await read_image(mask)
+            except ReferenceImageError as exc:
+                logger.debug("编辑蒙版读取失败：%s", exc)
+                return error_result(f"编辑蒙版无效，未调用图片编辑 API：{exc}")
         return await api_client.edit_image(
             self.config,
             prompt,
