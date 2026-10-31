@@ -193,6 +193,23 @@ class QuotaStore:
             self._write(data)
             return True
 
+    def refund(self, user_key: str) -> int:
+        """Return one claimed call to the sender.
+
+        Args:
+            user_key: The sender key.
+
+        Returns:
+            The used count after the refund.
+        """
+        with self._lock:
+            data = self._read()
+            record = self._record(data, user_key)
+            record["used"] = max(record["used"] - 1, 0)
+            data["users"][user_key] = record
+            self._write(data)
+            return record["used"]
+
     def checkin(
         self,
         user_key: str,
@@ -224,3 +241,51 @@ class QuotaStore:
             limit = daily_limit + record["bonus"] if daily_limit > 0 else 0
             remaining = max(limit - record["used"], 0) if limit > 0 else -1
             return True, max(bonus_gain, 0), remaining
+
+
+class QuotaGate:
+    """Charge one daily call per real request and settle exactly once.
+
+    One user action may send several requests (multiple keys, retries and
+    multiple sources). Every real request consumes one call, while an action
+    that produced no image returns exactly one call: retries are never free and
+    a failure never costs more than the attempts it actually made.
+    """
+
+    def __init__(self, store: QuotaStore, user_key: str, daily_limit: int) -> None:
+        self._store = store
+        self._user_key = user_key
+        self._daily_limit = daily_limit
+        self._charged = False
+        self._settled = False
+        self._exhausted = False
+
+    @property
+    def exhausted(self) -> bool:
+        """Whether a charge was refused because the quota is gone."""
+        return self._exhausted
+
+    def charge(self) -> str:
+        """Consume one call before a real request.
+
+        Returns:
+            An empty string when the request may proceed, otherwise the message
+            explaining that the quota is exhausted.
+        """
+        if self._daily_limit <= 0:
+            return ""
+        if not self._store.consume(self._user_key, self._daily_limit):
+            self._exhausted = True
+            used, effective = self._store.usage(self._user_key, self._daily_limit)
+            return quota_message(used, effective)
+        self._charged = True
+        return ""
+
+    def settle(self, produced: bool) -> None:
+        """Return exactly one call when the action produced no image."""
+        if self._settled:
+            return
+        self._settled = True
+        if not self._charged or produced or self._daily_limit <= 0:
+            return
+        self._store.refund(self._user_key)

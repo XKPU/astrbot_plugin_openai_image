@@ -93,11 +93,21 @@ def build_tools(
             "image": {
                 "type": "string",
                 "description": (
-                    "Optional image URL, data URI, or base64 string. Leave "
+                    "Optional single image URL, data URI, or base64 string. Leave "
                     "empty when the current message contains or quotes an image "
                     "(including QQ replies); the plugin finds it automatically. "
                     "Current attachments take priority over quoted images, then "
                     "this explicit parameter."
+                ),
+            },
+            "images": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": (
+                    "Optional list of extra reference images (URLs, data URIs, or "
+                    "base64 strings) to edit together with the attached or quoted "
+                    "ones. Use it when the user wants several images combined or "
+                    "compared in one edit."
                 ),
             },
             "mask": {
@@ -112,10 +122,11 @@ def build_tools(
             OpenAIImageFunctionTool(
                 name=EDIT_TOOL_NAME,
                 description=(
-                    "Edit or transform an existing image using a text prompt "
-                    "with an OpenAI-compatible image API. Supports images attached "
-                    "to the current message and images in QQ quoted/replied-to "
-                    "messages, including images previously sent by the bot. When "
+                    "Edit or transform one or more existing images using a text "
+                    "prompt with an OpenAI-compatible image API. Supports images "
+                    "attached to the current message and images in QQ "
+                    "quoted/replied-to messages, including images previously sent "
+                    "by the bot; all attached images are submitted together. When "
                     "the user quotes an image and requests changes, call "
                     "openai_image_edit. Leave image empty for an attached or "
                     "quoted image; the plugin finds it automatically. Do not ask "

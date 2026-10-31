@@ -1,13 +1,14 @@
-"""Pure helpers for parsing OpenAI-compatible image API responses."""
+"""Helpers for parsing image API responses and reporting failures."""
 
 from __future__ import annotations
 
 import base64
 import binascii
-import json
 from typing import Any
 
 from mcp import types as mcp_types
+
+from astrbot.api import logger
 
 from .constants import IMAGE_CONTAINER_KEYS, IMAGE_URL_KEYS
 
@@ -17,6 +18,26 @@ def error_result(message: str) -> mcp_types.CallToolResult:
     return mcp_types.CallToolResult(
         content=[mcp_types.TextContent(type="text", text=message)],
     )
+
+
+def failure(reason: str, detail: Any = None) -> mcp_types.CallToolResult:
+    """Log the technical detail and return a generic chat-facing failure.
+
+    Error details never reach the chat: only the log records them, while the
+    caller sees the generic reason.
+
+    Args:
+        reason: The generic message safe to show in the chat.
+        detail: Optional technical detail written to the log only.
+
+    Returns:
+        A tool result carrying the generic message.
+    """
+    if detail is None:
+        logger.error("openai_image: %s", reason)
+    else:
+        logger.error("openai_image: %s | %s", reason, detail)
+    return error_result(reason)
 
 
 def image_content(data: str, mime: str) -> mcp_types.ImageContent:
@@ -153,23 +174,3 @@ def split_image_value(value: str) -> tuple[str, str, str | None]:
         stripped = stripped[9:]
     data = "".join(stripped.split())
     return "base64", data, guess_mime(data)
-
-
-def to_form_value(value: Any) -> str:
-    """Convert an extra-request-body value into a multipart form string."""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
-    return str(value)
-
-
-def extension_for_mime(mime: str) -> str:
-    """Map an image MIME type to a file extension."""
-    return {
-        "image/png": "png",
-        "image/jpeg": "jpg",
-        "image/webp": "webp",
-        "image/gif": "gif",
-        "image/bmp": "bmp",
-    }.get(mime, "png")

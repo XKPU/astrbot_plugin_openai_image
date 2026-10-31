@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import base64
-import binascii
 import json
 import time
 from typing import Any
 
 import aiohttp
 from mcp import types as mcp_types
+
+from astrbot.api import logger
 
 from .config_access import (
     generation_payload,
@@ -21,47 +22,59 @@ from .config_access import (
     return_info_flags,
 )
 from .constants import POLISH_SYSTEM_PROMPT
+from .reference_images import download_image
 from .response_utils import (
     error_result,
-    extension_for_mime,
     extract_images,
+    failure,
     guess_mime,
     has_image,
     image_content,
     result_text,
     split_image_value,
     text_content,
-    to_form_value,
 )
 
-
-async def fetch_bytes(
-    session: aiohttp.ClientSession,
-    url: str,
-) -> tuple[bytes, str]:
-    """Download an image and return (bytes, mime)."""
-    async with session.get(url) as response:
-        response.raise_for_status()
-        body = await response.read()
-        mime = response.headers.get("Content-Type", "").split(";", 1)[0].strip()
-    if not mime or not mime.startswith("image/"):
-        mime = guess_mime(base64.b64encode(body).decode())
-    return body, mime
+# Chat-facing failure text per request kind; details stay in the log only.
+_REQUEST_FAILURE = {
+    "generation": "图像生成失败，请稍后重试或联系管理员查看日志。",
+    "edit": "图像编辑失败，请稍后重试或联系管理员查看日志。",
+}
 
 
-async def load_image_bytes(
-    session: aiohttp.ClientSession,
-    value: str,
-) -> tuple[bytes, str]:
-    """Load image bytes from a URL, data URI, or base64 string."""
+async def fetch_bytes(url: str, allow_any_port: bool = False) -> tuple[bytes, str]:
+    """Download a remote image through the guarded downloader.
+
+    Args:
+        url: The image URL returned by the API.
+        allow_any_port: Accept the URL on any public port. Image URLs returned by
+            the configured API may live on its own gateway port; every other
+            guard (public address, size, format, time) still applies.
+
+    Returns:
+        A tuple of (bytes, mime).
+
+    Raises:
+        ReferenceImageError: The URL is not a public HTTP(S) image or it fails
+            the size, format or time limits.
+    """
+    body = await download_image(url, allow_any_port)
+    return body, guess_mime(base64.b64encode(body).decode())
+
+
+async def load_image_data_url(value: str) -> str:
+    """Load one reference image and return it as a base64 data URL.
+
+    The JSON edit API takes ``ImageRefParam`` entries whose ``image_url`` is a
+    fully qualified URL or a base64 data URL. Remote URLs are downloaded here
+    and re-encoded, because several OpenAI-compatible routers refuse to fetch
+    them on their own.
+    """
     kind, data, mime = split_image_value(value)
     if kind == "url":
-        return await fetch_bytes(session, data)
-    try:
-        body = base64.b64decode(data, validate=False)
-    except (binascii.Error, ValueError) as exc:
-        raise ValueError("The provided image is not valid Base64 data.") from exc
-    return body, mime or guess_mime(data)
+        body, mime = await fetch_bytes(data)
+        data = base64.b64encode(body).decode()
+    return f"data:{mime or guess_mime(data)};base64,{data}"
 
 
 def _info_header(
@@ -133,21 +146,22 @@ async def fetch_models(
 
 
 async def handle_response(
-    session: aiohttp.ClientSession,
     response: aiohttp.ClientResponse,
     response_image_path: str,
 ) -> tuple[mcp_types.CallToolResult, str]:
     """Turn an image API response into (tool result, response id)."""
     text = await response.text()
     if response.status < 200 or response.status >= 300:
-        return error_result(
-            f"Image API request failed with HTTP {response.status}: {text[:2000]}",
+        return failure(
+            "图像接口请求失败，请稍后重试。",
+            f"HTTP {response.status}: {text[:2000]}",
         ), ""
     try:
         payload: Any = json.loads(text) if text else {}
     except json.JSONDecodeError:
-        return error_result(
-            f"Image API returned non-JSON content: {text[:2000]}",
+        return failure(
+            "图像接口返回了无法解析的内容。",
+            f"non-JSON response: {text[:2000]}",
         ), ""
     response_id = ""
     if isinstance(payload, dict):
@@ -155,9 +169,9 @@ async def handle_response(
 
     image_values = extract_images(payload, response_image_path)
     if not image_values:
-        return error_result(
-            f"No image found in response field '{response_image_path}'. "
-            f"Response preview: {text[:2000]}",
+        return failure(
+            "未在接口响应中找到图片。",
+            f"response field '{response_image_path}': {text[:2000]}",
         ), response_id
 
     content: list[mcp_types.ContentBlock] = []
@@ -167,10 +181,14 @@ async def handle_response(
         if kind == "url":
             notes.append(f"Image {index} URL: {data}")
             try:
-                body, mime = await fetch_bytes(session, data)
+                # The configured API may serve images from its own gateway
+                # port, so the port allowlist is relaxed here; internal
+                # addresses, size, format and time limits still apply.
+                body, mime = await fetch_bytes(data, allow_any_port=True)
             except Exception as exc:
+                logger.warning("openai_image: image URL download failed: %r", exc)
                 notes.append(
-                    f"Image {index} could not be downloaded: {exc}. "
+                    f"Image {index} could not be downloaded. "
                     "Send it to the user using the URL above.",
                 )
                 continue
@@ -190,56 +208,40 @@ async def _post_edit(
     prompt: str,
     aspect_ratio: str,
     headers: dict[str, str],
-    image_bytes: bytes | None,
-    image_mime: str,
-    mask_bytes: bytes | None,
-    mask_mime: str,
+    images: list[str],
+    mask: str,
     extra_args: dict[str, Any] | None = None,
 ) -> mcp_types.CallToolResult:
-    """Send one multipart edit request and normalize the response."""
-    extra = merged_extra(config, source)
-    field = source["aspect_ratio_field"] or ratio_field(config)
-    reserved = {"model", "prompt", "image", "mask"}
-    if aspect_ratio:
-        reserved.add(field)
+    """Send one JSON edit request and normalize the response.
 
-    form = aiohttp.FormData()
-    form.add_field("model", model_id)
-    form.add_field("prompt", prompt)
+    The edit endpoint takes the ``images`` array of ``ImageRefParam`` objects,
+    each holding a base64 data URL in ``image_url``; ``mask`` uses the same
+    shape. Multipart uploads are not used, because several OpenAI-compatible
+    routers only accept the JSON form.
+    """
+    payload = merged_extra(config, source)
+    field = source["aspect_ratio_field"] or ratio_field(config)
+    payload["model"] = model_id
+    payload["prompt"] = prompt
     if aspect_ratio:
-        form.add_field(field, aspect_ratio)
-    form.add_field(
-        "image",
-        image_bytes,
-        filename=f"image.{extension_for_mime(image_mime)}",
-        content_type=image_mime,
-    )
-    if mask_bytes is not None and mask_mime:
-        form.add_field(
-            "mask",
-            mask_bytes,
-            filename=f"mask.{extension_for_mime(mask_mime)}",
-            content_type=mask_mime,
-        )
-    for key, value in extra.items():
-        if str(key) in reserved:
-            continue
-        form.add_field(str(key), to_form_value(value))
-    for key, value in (extra_args or {}).items():
-        if str(key) in reserved:
-            continue
-        form.add_field(str(key), to_form_value(value))
+        payload[field] = aspect_ratio
+    payload["images"] = [{"image_url": value} for value in images]
+    if mask:
+        payload["mask"] = {"image_url": mask}
+    if extra_args:
+        payload.update(extra_args)
 
     # Per-source override wins over the global response_image_path.
     response_path = str(
         source.get("response_image_path") or config.get("response_image_path") or "data"
     )
+    headers["Content-Type"] = "application/json"
     async with session.post(
         f"{source['api_base']}/images/edits",
         headers=headers,
-        data=form,
+        json=payload,
     ) as response:
-        return await handle_response(session, response, response_path)
+        return await handle_response(response, response_path)
 
 
 async def _execute_plan_item(
@@ -248,16 +250,19 @@ async def _execute_plan_item(
     kind: str,
     prompt: str,
     aspect_ratio: str = "",
-    image: str = "",
+    images: list[str] | None = None,
     mask: str = "",
     extra_args: dict[str, Any] | None = None,
+    gate: Any = None,
 ) -> mcp_types.CallToolResult:
     """Run one plan item (source + model): keys x retries, then the request.
 
-    kind is "generation" (JSON POST /images/generations) or "edit"
-    (multipart POST /images/edits). Returns the first result carrying an
-    image; failure notes are accumulated otherwise. extra_args are appended
-    verbatim to the request body (command arguments).
+    kind is "generation" (JSON POST /images/generations) or "edit" (JSON POST
+    /images/edits). Returns the first result carrying an image; failure notes
+    are accumulated otherwise. extra_args are appended verbatim to the request
+    body (command arguments). gate, when given, charges one daily call before
+    every real request and aborts the remaining attempts once the quota is
+    exhausted.
     """
     source = plan_item["source"]
     tag = plan_item["tag"]
@@ -275,13 +280,14 @@ async def _execute_plan_item(
         async with aiohttp.ClientSession(
             timeout=request_timeout(config, source),
         ) as session:
-            image_bytes = None
-            mask_bytes = None
-            image_mime = mask_mime = ""
+            data_urls: list[str] = []
+            mask_url = ""
             if kind == "edit":
-                image_bytes, image_mime = await load_image_bytes(session, image)
+                data_urls = [
+                    await load_image_data_url(value) for value in (images or [])
+                ]
                 if mask.strip():
-                    mask_bytes, mask_mime = await load_image_bytes(session, mask)
+                    mask_url = await load_image_data_url(mask)
 
             for key_index, api_key in enumerate(source["api_keys"], start=1):
                 headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
@@ -289,6 +295,10 @@ async def _execute_plan_item(
                 for attempt in range(attempts):
                     if attempt:
                         retries_used += 1
+                    if gate is not None:
+                        denial = gate.charge()
+                        if denial:
+                            return error_result(denial)
                     try:
                         if kind == "generation":
                             payload = generation_payload(
@@ -306,7 +316,6 @@ async def _execute_plan_item(
                                 json=payload,
                             ) as response:
                                 result, response_id = await handle_response(
-                                    session,
                                     response,
                                     response_path,
                                 )
@@ -319,14 +328,12 @@ async def _execute_plan_item(
                                 prompt,
                                 aspect_ratio,
                                 headers,
-                                image_bytes,
-                                image_mime,
-                                mask_bytes,
-                                mask_mime,
+                                data_urls,
+                                mask_url,
                                 extra_args,
                             )
                     except Exception as exc:
-                        errors.append(f"{label}: {exc}")
+                        errors.append(f"{label}: {exc!r}")
                         continue
                     if has_image(result):
                         elapsed = time.monotonic() - started
@@ -342,9 +349,9 @@ async def _execute_plan_item(
                         return result
                     errors.append(f"{label}: {result_text(result)}")
     except Exception as exc:
-        return error_result(f"Image {kind} request failed: {exc}")
+        return failure(_REQUEST_FAILURE[kind], f"{kind}: {exc!r}")
 
-    return error_result(f"All attempts failed for {tag}:\n" + "\n".join(errors))
+    return failure(_REQUEST_FAILURE[kind], " | ".join(errors))
 
 
 async def generate_image(
@@ -353,6 +360,7 @@ async def generate_image(
     aspect_ratio: str = "",
     model_tag: str = "",
     extra_args: dict[str, Any] | None = None,
+    gate: Any = None,
 ) -> mcp_types.CallToolResult:
     """Generate images by walking the ordered source/model plan.
 
@@ -362,13 +370,14 @@ async def generate_image(
         aspect_ratio: The aspect ratio or size to send, when validated.
         model_tag: Restrict the plan to one source/model tag.
         extra_args: Extra request body fields appended verbatim.
+        gate: Optional quota gate charged once per real request.
 
     Returns:
         The first result carrying an image, or a combined error result.
     """
     plan = model_plan(config, "generation", model_tag)
     if not plan:
-        return error_result("No enabled image generation source is configured.")
+        return failure("没有可用的图像生成来源，请联系管理员检查配置。")
 
     errors: list[str] = []
     for plan_item in plan:
@@ -380,41 +389,46 @@ async def generate_image(
             suffixed,
             aspect_ratio=aspect_ratio,
             extra_args=extra_args,
+            gate=gate,
         )
         if has_image(result):
             return result
+        if gate is not None and gate.exhausted:
+            return result
         errors.append(result_text(result))
-    return error_result(
-        "All image generation sources failed:\n" + "\n".join(errors),
-    )
+    return failure(_REQUEST_FAILURE["generation"], " | ".join(errors))
 
 
 async def edit_image(
     config: Any,
     prompt: str,
-    image: str,
+    images: list[str],
     mask: str = "",
     aspect_ratio: str = "",
     model_tag: str = "",
     extra_args: dict[str, Any] | None = None,
+    gate: Any = None,
 ) -> mcp_types.CallToolResult:
     """Edit images by walking the ordered source/model plan.
 
     Args:
         config: The plugin configuration mapping.
         prompt: The prompt text.
-        image: The source image as a URL, data URI, or base64 string.
+        images: One or more source images, each a URL, data URI, or base64
+            string. They are sent as an ``images`` array of ``image_url`` data
+            URLs, as the OpenAI edit endpoint requires.
         mask: An optional mask image.
         aspect_ratio: The aspect ratio or size to send, when validated.
         model_tag: Restrict the plan to one source/model tag.
-        extra_args: Extra multipart fields appended verbatim.
+        extra_args: Extra request body fields appended verbatim.
+        gate: Optional quota gate charged once per real request.
 
     Returns:
         The first result carrying an image, or a combined error result.
     """
     plan = model_plan(config, "edit", model_tag)
     if not plan:
-        return error_result("No enabled image edit source is configured.")
+        return failure("没有可用的图像编辑来源，请联系管理员检查配置。")
 
     errors: list[str] = []
     for plan_item in plan:
@@ -425,16 +439,17 @@ async def edit_image(
             "edit",
             suffixed,
             aspect_ratio=aspect_ratio,
-            image=image,
+            images=images,
             mask=mask,
             extra_args=extra_args,
+            gate=gate,
         )
         if has_image(result):
             return result
+        if gate is not None and gate.exhausted:
+            return result
         errors.append(result_text(result))
-    return error_result(
-        "All image edit sources failed:\n" + "\n".join(errors),
-    )
+    return failure(_REQUEST_FAILURE["edit"], " | ".join(errors))
 
 
 async def polish_prompt(
@@ -449,9 +464,9 @@ async def polish_prompt(
         )
         polished = (response.completion_text or "").strip()
         if not polished:
-            return error_result("The model returned an empty polished prompt.")
+            return failure("提示词润色失败，请稍后重试。", "empty model response")
         return mcp_types.CallToolResult(
             content=[text_content(f"Polished prompt:\n{polished}")],
         )
     except Exception as exc:
-        return error_result(f"Prompt polishing failed: {exc}")
+        return failure("提示词润色失败，请稍后重试。", f"polish error: {exc!r}")

@@ -1,5 +1,22 @@
 # Changelog
 
+## [v1.1.1] - 2026-10-31
+
+### 新增
+
+- **引用图片编辑支持**：现在允许在图像编辑中引用历史聊天中的图片，该功能来自 @qq875871130 提交的 引用图片编辑支持与参考图下载安全加固 ([#1](https://github.com/XKPU/astrbot_plugin_openai_image/pull/1))。
+- **引用图片提取超时**：整条消息的多张图片共用 20 秒总预算，避免大量引用图片长时间占用处理
+
+### 修复
+
+- **图像编辑请求格式**：`/images/edits` 由 multipart 单张 `image` 表单改为 JSON 请求体，参考图经 `images` 数组以 Base64 Data URI（`image_url`）提交，`mask` 使用相同结构；支持一次提交一张或多张参考图
+
+### 变更
+
+- **调用次数结算**：改为每次真实请求前扣减一次，本次调用未产出图像时整体只返还一次，重试不再免费，失败也不会多扣；额度在重试或换来源途中用尽时立即停止后续请求并返还本次未产出图像的一次；润色工具不消耗次数
+- **参考图下载安全**：接口返回的图片链接改走内置安全下载器（校验公网地址、20 MiB 上限、格式校验与超时）；引用图片下载限制为 80、443、8080、8443 端口并避免错误回显外部状态码；只读取 AstrBot 数据目录内的本地缓存图片
+- **错误提示脱敏**：所有失败只向聊天返回通用提示，接口响应、来源与模型标识、密钥、链接、异常堆栈等细节一律仅写入 AstrBot 日志，不向用户暴露
+
 ## [v1.1.0] - 2026-10-31
 
 ### 新增
@@ -50,6 +67,7 @@
 - `_conf_schema.json` 扩展为多源模板列表格式
 - `metadata.yaml` 更新插件元信息
 
+[v1.1.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.0.1...v1.1.0
 [v1.0.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/aee1c1b7adc0af0cc483d50d9dff023af13ddb0c...v1.0.0

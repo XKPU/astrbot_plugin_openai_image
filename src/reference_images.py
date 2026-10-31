@@ -9,21 +9,26 @@ import ipaddress
 import re
 import socket
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
 import aiohttp
 from PIL import Image as PILImage
 from yarl import URL
 
+from astrbot.api import logger
 from astrbot.api.message_components import Image
+from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 
 from .response_utils import split_image_value
 
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
 DOWNLOAD_TIMEOUT = 15
+ATTACHMENT_TIMEOUT = 20
 MAX_REDIRECTS = 2
 SUPPORTED_FORMATS = ("PNG", "JPEG", "WEBP", "GIF", "BMP")
+ALLOWED_PORTS = (80, 443, 8080, 8443)
 
 
 class ReferenceImageError(ValueError):
@@ -77,7 +82,22 @@ def _check_public_ip(host: str) -> None:
             raise ReferenceImageError("图片链接使用不支持的网络转换地址，已拒绝下载。")
 
 
-def _check_url(url: str) -> URL:
+def _check_url(url: str, allow_any_port: bool = False) -> URL:
+    """Validate a remote image URL before any request is made.
+
+    Args:
+        url: The candidate image URL.
+        allow_any_port: Whether non-standard ports are accepted. Image URLs
+            returned by the configured API server may live on its own gateway
+            port, so those skip the port allow-list; every other check still
+            applies.
+
+    Returns:
+        The normalized URL to request.
+
+    Raises:
+        ReferenceImageError: The URL is not a public HTTP(S) image address.
+    """
     if any(char.isspace() or ord(char) < 32 for char in url) or "\\" in url:
         raise ReferenceImageError("图片链接包含无效字符。")
     try:
@@ -95,12 +115,15 @@ def _check_url(url: str) -> URL:
         or parsed.user is not None
         or parsed.password is not None
         or port is None
-        or not 1 <= port <= 65535
         or "%" in host
     ):
         raise ReferenceImageError(
             "图片链接仅支持不含凭据的 HTTP(S) 公网地址及有效端口。"
         )
+    # Restrict outbound requests to standard web ports so this reader cannot be
+    # used to probe arbitrary services on public hosts.
+    if not allow_any_port and port not in ALLOWED_PORTS:
+        raise ReferenceImageError("图片链接仅支持 80、443、8080、8443 端口。")
     if host.rstrip(".").lower() == "localhost" or host.lower().endswith(".localhost"):
         raise ReferenceImageError("图片链接指向本地地址，已拒绝下载。")
     # aiohttp 3.11 also skips DNS for shorthand/numeric forms (127.1,
@@ -123,8 +146,23 @@ class _PublicResolver(aiohttp.resolver.ThreadedResolver):
         return records
 
 
-async def _download_image(url: str) -> bytes:
-    target = _check_url(url)
+async def download_image(url: str, allow_any_port: bool = False) -> bytes:
+    """Download and validate a remote image with strict SSRF and size guards.
+
+    Args:
+        url: The image URL to download.
+        allow_any_port: Accept an image URL on any public port. This is used for
+            URLs returned by the configured image API, whose gateway may not use
+            a standard web port.
+
+    Returns:
+        The raw image bytes.
+
+    Raises:
+        ReferenceImageError: The URL is unsafe, unreachable, oversized or not a
+            supported image.
+    """
+    target = _check_url(url, allow_any_port)
     try:
         # One deadline covers DNS, every redirect and the complete response body.
         async with asyncio.timeout(DOWNLOAD_TIMEOUT):
@@ -151,11 +189,20 @@ async def _download_image(url: str) -> bytes:
                                     raise ReferenceImageError(
                                         "图片下载失败：重定向无效或次数过多。"
                                     )
-                                target = _check_url(urljoin(str(target), location))
+                                target = _check_url(
+                                    urljoin(str(target), location),
+                                    allow_any_port,
+                                )
                                 continue
                             if not 200 <= response.status < 300:
+                                logger.warning(
+                                    "openai_image: reference image download "
+                                    "failed with HTTP %s for %s",
+                                    response.status,
+                                    target,
+                                )
                                 raise ReferenceImageError(
-                                    f"图片下载失败（HTTP {response.status}），链接可能已过期或无权访问。"
+                                    "图片下载失败，链接可能已过期或无权访问。"
                                 )
                             if (
                                 response.headers.get(
@@ -215,11 +262,23 @@ def _validate_image(body: bytes) -> None:
         ) from None
 
 
-async def read_image(value: str) -> str:
-    """Return validated raw base64 from an explicit URL, data URI or base64."""
+async def read_image(value: str, allow_any_port: bool = False) -> str:
+    """Return validated raw base64 from an explicit URL, data URI or base64.
+
+    Args:
+        value: A URL, data URI or base64 payload.
+        allow_any_port: Accept an explicit URL on any public port. Only image
+            URLs returned by the configured API should opt in.
+
+    Returns:
+        The validated raw base64 payload.
+
+    Raises:
+        ReferenceImageError: The image cannot be read safely.
+    """
     value = value.strip()
     if value[:6].lower().startswith(("http:", "https:")):
-        body = await _download_image(value)
+        body = await download_image(value, allow_any_port)
     else:
         if value.startswith("data:"):
             header, separator, _ = value.partition(",")
@@ -248,11 +307,9 @@ async def read_component_image(component: Image) -> str:
         source = component.url or component.file or ""
         if source[:6].lower().startswith(("http:", "https:")):
             # AstrBot 4.28's downloader has no size/SSRF controls. Download safely
-            # first, then use the official conversion API on an in-memory component.
-            data = await read_image(source)
-            return await asyncio.wait_for(
-                Image.fromBase64(data).convert_to_base64(), DOWNLOAD_TIMEOUT
-            )
+            # here and skip the component conversion round-trip: read_image
+            # already returns validated raw base64.
+            return await read_image(source)
         # Preserve local component files, but do not let file:// or UNC paths
         # initiate unchecked SMB/network reads through AstrBot's media resolver.
         # Do not pass large inline payloads to urlsplit's global URL cache.
@@ -269,9 +326,23 @@ async def read_component_image(component: Image) -> str:
                         "图片组件不支持网络文件地址，请提供 HTTP(S) 公网图片。"
                     )
                 path = unquote(parsed.path)
+                if re.fullmatch(r"[A-Za-z]:", parsed.netloc or ""):
+                    path = f"{parsed.netloc}{path}"
             if path.replace("\\", "/").startswith("//"):
                 raise ReferenceImageError(
                     "图片组件不支持网络文件路径，请提供 HTTP(S) 公网图片。"
+                )
+            # Only files the platform adapter cached under the AstrBot data
+            # directory may be read, so the plugin never becomes an arbitrary
+            # local file reader.
+            try:
+                resolved = Path(path).resolve(strict=False)
+            except (OSError, ValueError):
+                raise ReferenceImageError("图片组件的本地路径无效。") from None
+            data_root = Path(get_astrbot_data_path()).resolve(strict=False)
+            if not resolved.is_relative_to(data_root):
+                raise ReferenceImageError(
+                    "图片组件仅支持读取 AstrBot 数据目录内的本地图片。"
                 )
         data = await asyncio.wait_for(component.convert_to_base64(), DOWNLOAD_TIMEOUT)
         return await read_image(data)

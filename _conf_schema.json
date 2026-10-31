@@ -166,7 +166,7 @@
     "type": "dict",
     "items": {},
     "default": {},
-    "hint": "合并进生成请求的 JSON 请求体；编辑时作为额外的 multipart 表单字段。来源可覆盖同名键。"
+    "hint": "合并进请求的 JSON 请求体；生成与编辑请求都会携带。来源可覆盖同名键。"
   },
   "timeout": {
     "description": "全局请求超时（秒）",
