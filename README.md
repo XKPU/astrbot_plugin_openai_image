@@ -20,7 +20,8 @@
 - [代码结构](#代码结构)
 - [参考图下载](#参考图下载)
 - [错误提示](#错误提示)
-- [贡献者](#贡献者)
+- [社区贡献者](#社区贡献者)
+  - [代码贡献](#代码贡献)
 - [许可证](#许可证)
 
 ## 工具
@@ -188,7 +189,7 @@ views/
 
 ### 代码贡献
 
-- [![qq875871130](https://avatars.githubusercontent.com/u/68939227?s=30)](https://github.com/qq875871130) @qq875871130
+- [![qq875871130](https://avatars.githubusercontent.com/u/68939227?s=30) @qq875871130](https://github.com/qq875871130)
   - 引用图片编辑支持与参考图下载安全加固（[#1](https://github.com/XKPU/astrbot_plugin_openai_image/pull/1)）
 
 欢迎通过 Pull 或 Issue 参与改进。
