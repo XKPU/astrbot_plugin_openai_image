@@ -194,6 +194,7 @@ async def _post_edit(
     image_mime: str,
     mask_bytes: bytes | None,
     mask_mime: str,
+    extra_args: dict[str, Any] | None = None,
 ) -> mcp_types.CallToolResult:
     """Send one multipart edit request and normalize the response."""
     extra = merged_extra(config, source)
@@ -224,6 +225,10 @@ async def _post_edit(
         if str(key) in reserved:
             continue
         form.add_field(str(key), to_form_value(value))
+    for key, value in (extra_args or {}).items():
+        if str(key) in reserved:
+            continue
+        form.add_field(str(key), to_form_value(value))
 
     # Per-source override wins over the global response_image_path.
     response_path = str(
@@ -245,12 +250,14 @@ async def _execute_plan_item(
     aspect_ratio: str = "",
     image: str = "",
     mask: str = "",
+    extra_args: dict[str, Any] | None = None,
 ) -> mcp_types.CallToolResult:
     """Run one plan item (source + model): keys x retries, then the request.
 
     kind is "generation" (JSON POST /images/generations) or "edit"
     (multipart POST /images/edits). Returns the first result carrying an
-    image; failure notes are accumulated otherwise.
+    image; failure notes are accumulated otherwise. extra_args are appended
+    verbatim to the request body (command arguments).
     """
     source = plan_item["source"]
     tag = plan_item["tag"]
@@ -290,6 +297,7 @@ async def _execute_plan_item(
                                 plan_item["model"],
                                 prompt,
                                 aspect_ratio,
+                                extra_args,
                             )
                             headers["Content-Type"] = "application/json"
                             async with session.post(
@@ -315,6 +323,7 @@ async def _execute_plan_item(
                                 image_mime,
                                 mask_bytes,
                                 mask_mime,
+                                extra_args,
                             )
                     except Exception as exc:
                         errors.append(f"{label}: {exc}")
@@ -343,8 +352,20 @@ async def generate_image(
     prompt: str,
     aspect_ratio: str = "",
     model_tag: str = "",
+    extra_args: dict[str, Any] | None = None,
 ) -> mcp_types.CallToolResult:
-    """Generate images by walking the ordered source/model plan."""
+    """Generate images by walking the ordered source/model plan.
+
+    Args:
+        config: The plugin configuration mapping.
+        prompt: The prompt text.
+        aspect_ratio: The aspect ratio or size to send, when validated.
+        model_tag: Restrict the plan to one source/model tag.
+        extra_args: Extra request body fields appended verbatim.
+
+    Returns:
+        The first result carrying an image, or a combined error result.
+    """
     plan = model_plan(config, "generation", model_tag)
     if not plan:
         return error_result("No enabled image generation source is configured.")
@@ -358,6 +379,7 @@ async def generate_image(
             "generation",
             suffixed,
             aspect_ratio=aspect_ratio,
+            extra_args=extra_args,
         )
         if has_image(result):
             return result
@@ -374,8 +396,22 @@ async def edit_image(
     mask: str = "",
     aspect_ratio: str = "",
     model_tag: str = "",
+    extra_args: dict[str, Any] | None = None,
 ) -> mcp_types.CallToolResult:
-    """Edit images by walking the ordered source/model plan."""
+    """Edit images by walking the ordered source/model plan.
+
+    Args:
+        config: The plugin configuration mapping.
+        prompt: The prompt text.
+        image: The source image as a URL, data URI, or base64 string.
+        mask: An optional mask image.
+        aspect_ratio: The aspect ratio or size to send, when validated.
+        model_tag: Restrict the plan to one source/model tag.
+        extra_args: Extra multipart fields appended verbatim.
+
+    Returns:
+        The first result carrying an image, or a combined error result.
+    """
     plan = model_plan(config, "edit", model_tag)
     if not plan:
         return error_result("No enabled image edit source is configured.")
@@ -391,6 +427,7 @@ async def edit_image(
             aspect_ratio=aspect_ratio,
             image=image,
             mask=mask,
+            extra_args=extra_args,
         )
         if has_image(result):
             return result

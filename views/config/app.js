@@ -8,162 +8,234 @@
   }
   var I18N = {
     "zh-CN": {
-      title: "OpenAI 图像插件配置",
-      subtitle: "配置 OpenAI 兼容的图像生成与编辑服务。",
+      title: "图像生成与编辑插件配置",
+      subtitle: "配置 OpenAI 兼容服务来源、请求参数与访问策略。",
       reload: "重新加载",
       save: "保存配置",
       saving: "保存中…",
-      loading: "加载中…",
-      navSources: "API 来源",
+      navSources: "服务来源",
       navModelOrder: "模型顺序",
       navPrompts: "附加提示词",
+      navCommands: "聊天命令",
+      navAccess: "区域管理",
       navToggles: "功能开关",
       navParams: "生成参数",
       navReturn: "返回信息",
-      sectionSources: "API 来源",
-      addSource: "+ 添加 API 来源",
+      sectionSources: "服务来源",
+      addSource: "+ 新增来源",
       sourcesHint:
-        "按来源顺序、来源内按模型顺序与 Key 顺序轮询；失败时按重试次数重试后切换下一项。",
+        "来源按列表顺序调用；同一来源内按模型顺序与密钥顺序轮换，单个密钥失败时按重试次数重试后再切换下一项。",
       sourceName: "名称",
-      apiBase: "API 地址",
-      apiKey: "API Key",
-      addKey: "+ 添加 Key",
+      apiBase: "接口地址",
+      apiKey: "API 密钥",
+      addKey: "+ 新增密钥",
       enabled: "启用",
       remove: "删除",
       up: "上移",
       down: "下移",
-      sectionModels: "模型列表（按序执行）",
-      addModel: "+ 添加模型",
-      fetchModels: "从 API 获取模型",
+      sectionModels: "模型列表（按调用顺序）",
+      addModel: "+ 新增模型",
+      fetchModels: "从接口获取模型",
       fetchingModels: "获取中…",
-      fetchModelsOk: "已获取 N 个模型，请勾选添加。",
-      fetchModelsEmpty: "API 未返回任何模型。",
+      fetchModelsOk: "已获取 N 个模型，请选择需要添加的项。",
+      fetchModelsEmpty: "接口未返回任何模型。",
       fetchModelsFailed: "获取模型失败：",
-      pickModels: "选择要添加的模型",
+      pickModels: "选择需要添加的模型",
       selectAllModels: "全选",
       addSelected: "添加所选",
       modelId: "模型 ID",
-      retries: "重试",
-      sourceAdvanced: "高级覆盖项（留空使用全局配置）",
+      retries: "重试次数",
+      sourceAdvanced: "来源高级配置（留空则沿用全局值）",
       enableGeneration: "参与图像生成",
       enableEdit: "参与图像编辑",
       aspectRatios: "可用宽高比 / 尺寸（每行一项）",
-      ratioField: "比例请求字段名",
-      validateRatio: "校验比例 / 尺寸取值",
-      validateRatioHint: "关闭后任意尺寸原样透传，不再限制枚举。",
-      generationPrompt: "生图附加提示词",
+      ratioField: "宽高比写入字段",
+      validateRatio: "校验宽高比 / 尺寸取值",
+      validateRatioHint: "关闭后任意取值原样透传，不再限制为枚举项。",
+      generationPrompt: "图像生成附加提示词",
       editPrompt: "编辑附加提示词",
-      extraBody: "额外请求体参数（JSON）",
-      timeout: "超时（秒，0=全局）",
-      sectionModelOrder: "模型使用顺序（全局）",
+      extraBody: "额外请求体字段（JSON）",
+      timeout: "超时（秒，0 = 沿用全局）",
+      sectionModelOrder: "全局模型调用顺序",
       modelOrderHint:
-        "按此列表顺序优先执行模型；未列出的模型按来源与模型列表顺序跟在后面。标签格式：来源名称/模型ID。",
-      addTag: "+ 添加标签",
+        "列表中的模型按此顺序优先调用；未列出的模型按来源与模型列表顺序排在后面。标签格式为「来源名称/模型ID」。",
+      addTag: "+ 新增标签",
       syncTags: "同步来源模型",
       sectionPrompts: "全局附加提示词",
+      sectionCommands: "聊天命令",
+      commandsHint:
+        "命令由插件直接处理，不经过 LLM。命令头每行一项，可配置多个；命中命令头之后的全部内容均为提示词，支持多行与空格。",
+      enableCommands: "启用聊天命令",
+      commandEnablePolish: "命令提示词润色",
+      commandPrefix: "命令触发前缀",
+      commandGenerationHead: "图像生成命令头（每行一项）",
+      commandEditHead: "图像编辑命令头（每行一项）",
+      commandPolishProvider: "命令润色模型",
+      commandPolishDefault: "（使用当前会话模型）",
+      commandArgMode: "追加参数模式",
+      commandArgModeOff: "禁止追加参数",
+      commandArgModeAll: "允许追加任意参数",
+      commandArgModeListed: "仅允许追加已配置的参数",
+      commandAllowedArgs: "允许追加的参数字段（每行一项）",
+      commandArgsHint:
+        "追加参数写作 --字段:值，例如 --size:512x512，会原样并入请求体；第一个参数之后的任何内容都不再作为提示词。「仅允许追加已配置的参数」时只向图像接口传递下方列出的字段，其余字段会被丢弃。",
+      sectionAccess: "区域管理",
+      accessHint:
+        "黑白名单与每日调用上限对聊天命令和 LLM 工具调用同时生效；名单为空时对应模式不拦截任何会话。",
+      accessGroupMode: "群聊名单模式",
+      accessUserMode: "用户名单模式",
+      accessGroupIds: "群聊名单（每行一个群号）",
+      accessUserIds: "用户名单（每行一个用户 ID）",
+      modeOff: "不限制",
+      modeWhitelist: "仅白名单可用",
+      modeBlacklist: "黑名单不可用",
+      quotaDailyLimit: "每人每日调用上限（0 = 不限）",
+      checkinEnabled: "启用签到补充额度",
+      checkinHeads: "签到命令头（每行一项）",
+      checkinBonus: "每次签到补充的次数",
+      checkinSuccess: "签到成功回复",
+      checkinFail: "重复签到回复",
+      checkinHint:
+        "回复可使用占位符：{{count}} 本次获得次数、{{remaining}} 今日剩余次数、{{limit}} 每日上限。签到命令与图像生成命令共用触发前缀。",
       sectionToggles: "功能开关",
       enableGenerationTool: "启用图像生成工具",
       enableEditTool: "启用图像编辑工具",
       enablePromptPolish: "启用提示词润色工具",
       sectionParams: "全局生成参数",
       globalRatios: "可用宽高比 / 尺寸（每行一项）",
-      globalRatioField: "比例请求字段名",
-      responsePath: "响应图片路径",
+      globalRatioField: "宽高比写入字段",
+      responsePath: "响应图像路径",
       globalTimeout: "全局超时（秒）",
-      globalExtraBody: "额外请求体参数（JSON，全局）",
+      globalExtraBody: "全局额外请求体字段（JSON）",
       sectionReturn: "工具返回信息",
-      returnElapsed: "返回请求用时",
+      returnElapsed: "返回请求耗时",
       returnId: "返回请求 ID",
-      returnModel: "返回模型（来源/模型ID）",
+      returnModel: "返回模型标签",
       returnRetries: "返回重试次数",
       loadFailed: "加载配置失败：",
       saveFailed: "保存失败：",
-      saved: "配置已保存并已重载工具。",
-      invalidJson: "“额外请求体参数”不是有效的 JSON。",
-      confirmRemove: "确定删除该 API 来源？",
+      saved: "配置已保存，工具已重新加载。",
+      invalidJson: "「额外请求体字段」不是有效的 JSON。",
+      confirmRemove: "确定删除该来源？",
       confirmRemoveModel: "确定删除该模型？",
-      sourceLabel: "API 来源",
-      secretPlaceholder: "sk-…（留空则删除该 Key）",
-      revealKey: "显示/隐藏 Key",
+      sourceLabel: "服务来源",
+      secretPlaceholder: "sk-…（留空则删除该密钥）",
+      revealKey: "显示或隐藏密钥",
     },
     "en-US": {
-      title: "OpenAI Image Plugin Config",
-      subtitle: "Configure OpenAI-compatible image generation and editing.",
+      title: "Image Generation and Editing Plugin",
+      subtitle: "Configure OpenAI-compatible sources, request parameters and access policy.",
       reload: "Reload",
-      save: "Save",
+      save: "Save config",
       saving: "Saving…",
-      loading: "Loading…",
-      navSources: "Sources",
+      navSources: "Service sources",
       navModelOrder: "Model order",
-      navPrompts: "Additional prompts",
-      navToggles: "Switches",
+      navPrompts: "Prompts",
+      navCommands: "Commands",
+      navAccess: "Access control",
+      navToggles: "Feature switches",
       navParams: "Parameters",
-      navReturn: "Return info",
-      sectionSources: "Sources",
+      navReturn: "Return details",
+      sectionSources: "Service sources",
       addSource: "+ Add source",
       sourcesHint:
-        "Sources are tried in order; within a source, models and keys rotate. Failed calls are retried per model before moving on.",
+        "Sources are called in list order; within a source, models and keys rotate. A failing key is retried per its retry count before moving on.",
       sourceName: "Name",
-      apiBase: "API base",
+      apiBase: "API base URL",
       apiKey: "API key",
       addKey: "+ Add key",
       enabled: "Enabled",
       remove: "Remove",
       up: "Move up",
       down: "Move down",
-      sectionModels: "Models (ordered by priority)",
+      sectionModels: "Models (in call order)",
       addModel: "+ Add model",
-      fetchModels: "Fetch models from API",
+      fetchModels: "Fetch models from the API",
       fetchingModels: "Fetching…",
-      fetchModelsOk: "Fetched N models, pick the ones to add.",
+      fetchModelsOk: "Fetched N models. Select the ones to add.",
       fetchModelsEmpty: "The API returned no models.",
       fetchModelsFailed: "Failed to fetch models: ",
-      pickModels: "Pick models to add",
+      pickModels: "Select models to add",
       selectAllModels: "Select all",
       addSelected: "Add selected",
       modelId: "Model ID",
       retries: "Retries",
-      sourceAdvanced: "Source-specific overrides (empty = use global)",
+      sourceAdvanced: "Source overrides (blank inherits the global value)",
       enableGeneration: "Use for generation",
       enableEdit: "Use for editing",
-      aspectRatios: "Aspect ratios (one per line)",
-      ratioField: "Ratio request field",
+      aspectRatios: "Aspect ratios / sizes (one per line)",
+      ratioField: "Aspect ratio field",
       validateRatio: "Validate aspect ratio values",
-      validateRatioHint: "When off, any size is passed through without enum checks.",
-      generationPrompt: "Generation additional prompt",
+      validateRatioHint: "When off, any value is passed through without enumeration.",
+      generationPrompt: "Image generation additional prompt",
       editPrompt: "Edit additional prompt",
-      extraBody: "Extra request body (JSON)",
-      timeout: "Timeout (s, 0=global)",
-      sectionModelOrder: "Model usage order (global)",
+      extraBody: "Extra request body fields (JSON)",
+      timeout: "Timeout (seconds, 0 = inherit global)",
+      sectionModelOrder: "Global model call order",
       modelOrderHint:
-        "Models listed here run first in this order; unlisted models follow in source and model list order. Tag format: source_name/model_id.",
+        "Listed models are called first in this order; unlisted models follow in source and model list order. Tag format: source_name/model_id.",
       addTag: "+ Add tag",
       syncTags: "Sync from sources",
       sectionPrompts: "Global additional prompts",
+      sectionCommands: "Chat commands",
+      commandsHint:
+        "Commands are handled by the plugin directly and bypass the LLM. Use one command head per line; everything after the matched head is prompt text and may span multiple lines.",
+      enableCommands: "Enable chat commands",
+      commandEnablePolish: "Polish command prompts",
+      commandPrefix: "Command trigger prefix",
+      commandGenerationHead: "Image generation command heads (one per line)",
+      commandEditHead: "Edit command heads (one per line)",
+      commandPolishProvider: "Command polish model",
+      commandPolishDefault: "(use the current chat model)",
+      commandArgMode: "Extra arguments",
+      commandArgModeOff: "No extra arguments",
+      commandArgModeAll: "Allow any extra argument",
+      commandArgModeListed: "Allow configured arguments only",
+      commandAllowedArgs: "Allowed argument fields (one per line)",
+      commandArgsHint:
+        "Extra arguments are written as --key:value, e.g. --size:512x512, and are merged into the request body; nothing after the first argument is treated as prompt text. With configured-arguments-only, only the fields listed below are forwarded and the rest are dropped.",
+      sectionAccess: "Access control",
+      accessHint:
+        "The black/white lists and the daily call limit apply to both chat commands and LLM tool calls. An empty list never blocks anyone.",
+      accessGroupMode: "Group list mode",
+      accessUserMode: "User list mode",
+      accessGroupIds: "Group IDs (one per line)",
+      accessUserIds: "User IDs (one per line)",
+      modeOff: "Unrestricted",
+      modeWhitelist: "Whitelist only",
+      modeBlacklist: "Blacklisted",
+      quotaDailyLimit: "Daily call limit per user (0 = unlimited)",
+      checkinEnabled: "Enable check-in bonus",
+      checkinHeads: "Check-in command heads (one per line)",
+      checkinBonus: "Calls granted per check-in",
+      checkinSuccess: "Check-in success reply",
+      checkinFail: "Duplicate check-in reply",
+      checkinHint:
+        "Replies support {{count}} (granted calls), {{remaining}} (left today) and {{limit}} (daily limit). Check-in shares the command trigger prefix.",
       sectionToggles: "Feature switches",
       enableGenerationTool: "Enable generation tool",
       enableEditTool: "Enable edit tool",
-      enablePromptPolish: "Enable prompt polish tool",
+      enablePromptPolish: "Enable prompt polishing tool",
       sectionParams: "Global generation parameters",
-      globalRatios: "Aspect ratios (one per line)",
-      globalRatioField: "Ratio request field",
+      globalRatios: "Aspect ratios / sizes (one per line)",
+      globalRatioField: "Aspect ratio field",
       responsePath: "Response image path",
       globalTimeout: "Global timeout (seconds)",
-      globalExtraBody: "Extra request body (JSON, global)",
-      sectionReturn: "Tool return info",
-      returnElapsed: "Return elapsed time",
+      globalExtraBody: "Global extra request body fields (JSON)",
+      sectionReturn: "Tool return details",
+      returnElapsed: "Return request elapsed time",
       returnId: "Return request ID",
-      returnModel: "Return model (source/model)",
+      returnModel: "Return model tag",
       returnRetries: "Return retry count",
       loadFailed: "Failed to load config: ",
       saveFailed: "Save failed: ",
       saved: "Config saved and tools reloaded.",
-      invalidJson: "“Extra request body” is not valid JSON.",
-      confirmRemove: "Remove this source?",
-      confirmRemoveModel: "Remove this model?",
+      invalidJson: "The extra request body fields are not valid JSON.",
+      confirmRemove: "Delete this source?",
+      confirmRemoveModel: "Delete this model?",
       sourceLabel: "Source",
-      secretPlaceholder: "sk-… (empty removes this key)",
-      revealKey: "Show/hide key",
+      secretPlaceholder: "sk-… (leave empty to remove this key)",
+      revealKey: "Show or hide the key",
     },
   };
 
@@ -207,6 +279,18 @@
         return item.trim();
       })
       .filter(Boolean);
+  }
+
+  function normalizeArgMode(value) {
+    var mode = String(value || "").trim().toLowerCase();
+    return mode === "off" || mode === "all" || mode === "listed"
+      ? mode
+      : "listed";
+  }
+
+  function syncArgModeState() {
+    var listed = $("#command_arg_mode").value === "listed";
+    $("#command_allowed_args").disabled = !listed;
   }
 
   /* ---------- rendering ---------- */
@@ -311,6 +395,8 @@
   function removeButton(confirmKey, getRow) {
     var button = el("button", "btn small danger icon", "✕");
     button.type = "button";
+    button.title = t("remove");
+    button.setAttribute("aria-label", t("remove"));
     button.addEventListener("click", function () {
       if (confirmKey && !window.confirm(t(confirmKey))) return;
       var row = getRow();
@@ -338,6 +424,8 @@
     idInput.type = "text";
     idInput.value = model.id || "";
     idInput.placeholder = "gpt-image-1";
+    idInput.title = t("modelId");
+    idInput.setAttribute("aria-label", t("modelId"));
     idInput.dataset.field = "model_id";
     idInput.className = "model-id";
     row.appendChild(idInput);
@@ -740,6 +828,33 @@
         return_id: $("#return_id").checked,
         return_model: $("#return_model").checked,
         return_retries: $("#return_retries").checked,
+        enable_commands: $("#enable_commands").checked,
+        command_prefix: $("#command_prefix").value.trim() || "/",
+        command_generation_head:
+          splitLines($("#command_generation_head").value).length > 0
+            ? splitLines($("#command_generation_head").value)
+            : ["t2i"],
+        command_edit_head:
+          splitLines($("#command_edit_head").value).length > 0
+            ? splitLines($("#command_edit_head").value)
+            : ["i2i"],
+        command_enable_polish: $("#command_enable_polish").checked,
+        command_arg_mode: $("#command_arg_mode").value,
+        command_allowed_args: splitLines($("#command_allowed_args").value),
+        command_polish_provider: $("#command_polish_provider").value,
+        access_group_mode: normalizeListMode($("#access_group_mode").value),
+        access_user_mode: normalizeListMode($("#access_user_mode").value),
+        access_group_ids: splitLines($("#access_group_ids").value),
+        access_user_ids: splitLines($("#access_user_ids").value),
+        quota_daily_limit: parseInt($("#quota_daily_limit").value, 10) || 0,
+        checkin_enabled: $("#checkin_enabled").checked,
+        checkin_heads:
+          splitLines($("#checkin_heads").value).length > 0
+            ? splitLines($("#checkin_heads").value)
+            : ["checkin"],
+        checkin_bonus: parseInt($("#checkin_bonus").value, 10) || 0,
+        checkin_success: $("#checkin_success").value.trim(),
+        checkin_fail: $("#checkin_fail").value.trim(),
       },
     };
   }
@@ -773,6 +888,94 @@
     $("#return_id").checked = !!state.config.return_id;
     $("#return_model").checked = !!state.config.return_model;
     $("#return_retries").checked = !!state.config.return_retries;
+    $("#enable_commands").checked = state.config.enable_commands !== false;
+    $("#command_prefix").value = state.config.command_prefix || "/";
+    $("#command_generation_head").value = (
+      Array.isArray(state.config.command_generation_head)
+        ? state.config.command_generation_head
+        : splitLines(state.config.command_generation_head || "t2i")
+    ).join("\n");
+    $("#command_edit_head").value = (
+      Array.isArray(state.config.command_edit_head)
+        ? state.config.command_edit_head
+        : splitLines(state.config.command_edit_head || "i2i")
+    ).join("\n");
+    $("#command_enable_polish").checked = !!state.config.command_enable_polish;
+    $("#command_arg_mode").value = normalizeArgMode(state.config.command_arg_mode);
+    $("#command_allowed_args").value = (
+      Array.isArray(state.config.command_allowed_args)
+        ? state.config.command_allowed_args
+        : splitLines(state.config.command_allowed_args || "size")
+    ).join("\n");
+    selectProvider(state.config.command_polish_provider || "");
+    syncArgModeState();
+    $("#access_group_mode").value = normalizeListMode(state.config.access_group_mode);
+    $("#access_user_mode").value = normalizeListMode(state.config.access_user_mode);
+    $("#access_group_ids").value = (
+      Array.isArray(state.config.access_group_ids)
+        ? state.config.access_group_ids
+        : splitLines(state.config.access_group_ids || "")
+    ).join("\n");
+    $("#access_user_ids").value = (
+      Array.isArray(state.config.access_user_ids)
+        ? state.config.access_user_ids
+        : splitLines(state.config.access_user_ids || "")
+    ).join("\n");
+    $("#quota_daily_limit").value = state.config.quota_daily_limit || 0;
+    $("#checkin_enabled").checked = !!state.config.checkin_enabled;
+    $("#checkin_heads").value = (
+      Array.isArray(state.config.checkin_heads)
+        ? state.config.checkin_heads
+        : splitLines(state.config.checkin_heads || "checkin")
+    ).join("\n");
+    $("#checkin_bonus").value =
+      state.config.checkin_bonus === undefined ? 1 : state.config.checkin_bonus;
+    $("#checkin_success").value = state.config.checkin_success || "";
+    $("#checkin_fail").value = state.config.checkin_fail || "";
+  }
+
+  function normalizeListMode(value) {
+    return value === "whitelist" || value === "blacklist" ? value : "off";
+  }
+
+  function selectProvider(providerId) {
+    var select = $("#command_polish_provider");
+    if (!select) return;
+    var found = false;
+    Array.prototype.forEach.call(select.options, function (option) {
+      if (option.value === providerId) found = true;
+    });
+    if (providerId && !found) {
+      var extra = el("option", null, providerId);
+      extra.value = providerId;
+      select.appendChild(extra);
+    }
+    select.value = providerId;
+  }
+
+  async function loadProviders() {
+    var select = $("#command_polish_provider");
+    if (!select) return;
+    try {
+      var data = await sdk().apiGet("providers");
+      var providers = (data && (data.providers || (data.data && data.data.providers))) || [];
+      select.textContent = "";
+      var auto = el("option", null, t("commandPolishDefault"));
+      auto.value = "";
+      select.appendChild(auto);
+      providers.forEach(function (provider) {
+        var option = el("option", null, provider.label || provider.id);
+        option.value = provider.id;
+        select.appendChild(option);
+      });
+      selectProvider(state.config.command_polish_provider || "");
+    } catch (err) {
+      /* The provider list is optional; keep the field usable without it. */
+      select.textContent = "";
+      var fallback = el("option", null, t("commandPolishDefault"));
+      fallback.value = "";
+      select.appendChild(fallback);
+    }
   }
 
   function renderSources(sources) {
@@ -882,6 +1085,7 @@
       $("#model-order-list").appendChild(orderRow(""));
     });
     $("#btn-sync-tags").addEventListener("click", syncModelOrder);
+    $("#command_arg_mode").addEventListener("change", syncArgModeState);
     if (bridge.onContext) {
       bridge.onContext(function (ctx) {
         if (ctx && ctx.locale && ctx.locale !== state.locale) {
@@ -893,6 +1097,7 @@
     setupNav();
     bridge.ready();
     loadConfig();
+    loadProviders();
   }
 
   if (document.readyState === "loading") {

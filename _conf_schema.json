@@ -1,23 +1,23 @@
 {
   "sources": {
-    "description": "图像 API 来源",
+    "description": "服务来源列表",
     "type": "template_list",
     "default": [],
-    "hint": "可添加多个来源。每个来源可配置多个模型与多个 API Key；请求失败时按 重试次数 → Key 顺序 → 来源顺序 → 模型顺序 切换。",
+    "hint": "可配置多个来源，每个来源可包含多个模型与多个 API 密钥。请求按来源顺序、模型顺序与密钥顺序依次尝试，单个密钥失败时按重试次数重试后再切换下一个密钥。",
     "templates": {
       "openai_compatible": {
         "name": "OpenAI 兼容来源",
-        "hint": "填写到 /v1 的端点，插件会自动拼接 /images/generations 与 /images/edits。",
+        "hint": "填写到 /v1 的接口地址，插件会在其后拼接 /images/generations 与 /images/edits。",
         "display_item": "name",
         "items": {
           "name": {
             "description": "来源名称",
             "type": "string",
             "default": "",
-            "hint": "同时用作模型选择标签的前缀（来源名称/模型ID）。"
+            "hint": "同时作为模型标签的前缀，格式为「来源名称/模型ID」。"
           },
           "api_base": {
-            "description": "API 端点（到 /v1）",
+            "description": "接口地址（含 /v1）",
             "type": "string",
             "default": "https://api.openai.com/v1"
           },
@@ -25,14 +25,14 @@
             "description": "模型列表",
             "type": "list",
             "default": [],
-            "hint": "每项为模型 ID，可用 \"模型ID:重试次数\" 或 {\"id\":..., \"retries\":...} 指定失败重试次数（默认 0）。列表顺序即使用顺序，模型标签为 来源名称/模型ID。"
+            "hint": "每项为模型 ID，可使用 \"模型ID:重试次数\" 或 {\"id\": ..., \"retries\": ...} 指定失败重试次数（默认 0）。列表顺序即调用顺序，模型标签为「来源名称/模型ID」。"
           },
           "api_keys": {
-            "description": "API Key 列表",
+            "description": "API 密钥列表",
             "type": "list",
             "default": [],
             "secret": true,
-            "hint": "按顺序轮询，失败切换下一个。留空时不发送 Authorization 请求头。"
+            "hint": "按顺序轮询，失败时切换下一个密钥。留空时不发送 Authorization 请求头。"
           },
           "enable_generation": {
             "description": "此来源参与图像生成",
@@ -45,37 +45,37 @@
             "default": true
           },
           "aspect_ratios": {
-            "description": "此来源可用的比例/尺寸",
+            "description": "此来源可用的宽高比 / 尺寸",
             "type": "list",
             "default": [],
-            "hint": "留空使用全局 available_aspect_ratios。"
+            "hint": "留空时沿用全局 available_aspect_ratios。"
           },
           "aspect_ratio_field": {
-            "description": "此来源的比例请求字段名",
+            "description": "此来源的宽高比写入字段",
             "type": "string",
             "default": "",
-            "hint": "留空使用全局 aspect_ratio_field（默认 size）。"
+            "hint": "留空时沿用全局 aspect_ratio_field（默认 size）。"
           },
           "validate_aspect_ratio": {
-            "description": "校验比例/尺寸取值",
+            "description": "校验宽高比 / 尺寸取值",
             "type": "bool",
             "default": true,
-            "hint": "关闭后此来源不参与比例枚举计算，工具的 aspect_ratio 参数变为自由字符串，任意尺寸原样透传。"
+            "hint": "关闭后此来源不参与枚举计算，工具的 aspect_ratio 参数变为自由字符串，任意取值原样透传。"
           },
           "generation_prompt": {
-            "description": "生图附加提示词（覆盖全局）",
+            "description": "图像生成附加提示词（覆盖全局）",
             "type": "text",
             "default": "",
-            "hint": "留空使用全局 generation_prompt。"
+            "hint": "留空时沿用全局 generation_prompt。"
           },
           "edit_prompt": {
             "description": "编辑附加提示词（覆盖全局）",
             "type": "text",
             "default": "",
-            "hint": "留空使用全局 edit_prompt。"
+            "hint": "留空时沿用全局 edit_prompt。"
           },
           "extra_request_body": {
-            "description": "此来源的额外请求体参数",
+            "description": "此来源的额外请求体字段",
             "type": "dict",
             "items": {},
             "default": {},
@@ -85,13 +85,13 @@
             "description": "此来源的请求超时（秒）",
             "type": "int",
             "default": 0,
-            "hint": "0 表示使用全局 timeout。"
+            "hint": "0 表示沿用全局 timeout。"
           },
           "response_image_path": {
-            "description": "此来源的响应图片路径",
+            "description": "此来源的响应图像路径",
             "type": "string",
             "default": "",
-            "hint": "留空使用全局 response_image_path（默认 data）。支持 data / data.url / data.0.url / data.*.url 等写法。"
+            "hint": "留空时沿用全局 response_image_path（默认 data）。支持 data、data.url、data.0.url、data.*.url 等写法。"
           },
           "enabled": {
             "description": "启用此来源",
@@ -103,73 +103,73 @@
     }
   },
   "generation_prompt": {
-    "description": "附加生图提示词（全局）",
+    "description": "全局图像生成附加提示词",
     "type": "text",
     "default": "",
-    "hint": "会追加到 LLM 传入的生图提示词之后，可用于统一画风或质量要求。来源覆盖优先于全局。"
+    "hint": "追加在请求的图像生成提示词之后，用于统一画风或质量要求。来源单独配置时以来源为准。"
   },
   "edit_prompt": {
     "description": "全局编辑附加提示词",
     "type": "text",
     "default": "",
-    "hint": "会追加到 LLM 传入的图片编辑提示词之后，可用于统一编辑要求。来源覆盖优先于全局。"
+    "hint": "追加在请求的编辑提示词之后，用于统一编辑要求。来源单独配置时以来源为准。"
   },
   "enable_generation": {
     "description": "启用图像生成工具",
     "type": "bool",
     "default": true,
-    "hint": "启用后向 LLM 注册 openai_image_generate 工具（还需有参与生成的来源）。"
+    "hint": "启用后向 LLM 注册 openai_image_generate 工具，同时需要至少一个参与生成的来源。"
   },
   "enable_edit": {
     "description": "启用图像编辑工具",
     "type": "bool",
     "default": true,
-    "hint": "启用后向 LLM 注册 openai_image_edit 工具（还需有参与编辑的来源）。"
+    "hint": "启用后向 LLM 注册 openai_image_edit 工具，同时需要至少一个参与编辑的来源。"
   },
   "enable_prompt_polish": {
     "description": "启用提示词润色工具",
     "type": "bool",
     "default": true,
-    "hint": "启用后向 LLM 注册 openai_image_polish_prompt 工具，使用当前对话模型润色图像提示词。"
+    "hint": "启用后向 LLM 注册 openai_image_polish_prompt 工具，由当前对话模型将简短描述润色为图像提示词。"
   },
   "model_order": {
-    "description": "模型使用顺序（全局）",
+    "description": "全局模型调用顺序",
     "type": "list",
     "default": [],
-    "hint": "填写模型标签（来源名称/模型ID，也可只写模型 ID）。列表中的标签按此顺序优先执行，未列出的模型按来源与模型列表顺序跟在后面。留空则完全按来源/模型配置顺序。"
+    "hint": "填写模型标签（来源名称/模型ID，也可只写模型 ID）。列出的标签按此顺序优先调用，未列出的模型按来源与模型列表顺序排列。留空时完全按配置顺序执行。"
   },
   "available_aspect_ratios": {
-    "description": "可用的比例/尺寸（全局）",
+    "description": "全局可用的宽高比 / 尺寸",
     "type": "list",
     "default": [
       "1024x1024",
       "1536x1024",
       "1024x1536"
     ],
-    "hint": "来源未单独配置时的回退选项，并原样写入 aspect_ratio_field 指定的字段。OpenAI 官方接口请使用 1024x1024 这类尺寸；接受 1:1 等比例的兼容接口可填写 1:1 并把字段改为 aspect_ratio。"
+    "hint": "来源未单独配置时使用这些取值，并原样写入 aspect_ratio_field 指定的字段。OpenAI 官方接口使用 1024x1024 这类尺寸；接受 1:1 这类比值的兼容接口可填写 1:1，并将字段改为 aspect_ratio。"
   },
   "aspect_ratio_field": {
-    "description": "比例写入的请求字段名（全局）",
+    "description": "全局宽高比写入字段",
     "type": "string",
     "default": "size",
-    "hint": "默认写入 size。若端点使用 aspect_ratio 字段，请改为 aspect_ratio。来源可单独覆盖。"
+    "hint": "默认写入 size。接口使用 aspect_ratio 字段时改为 aspect_ratio。来源可单独覆盖。"
   },
   "response_image_path": {
     "description": "响应中的图像字段路径",
     "type": "string",
     "default": "data",
-    "hint": "使用点号路径，例如 data、data.url、data.0.url、data.*.url。支持 URL、Data URI 或 Base64，会自动识别。",
+    "hint": "使用点号路径，例如 data、data.url、data.0.url、data.*.url。取值可为 URL、Data URI 或 Base64，插件会自动识别。",
     "obvious_hint": true
   },
   "extra_request_body": {
-    "description": "额外请求体参数（全局）",
+    "description": "全局额外请求体字段",
     "type": "dict",
     "items": {},
     "default": {},
-    "hint": "会合并进生成请求的 JSON 请求体；编辑时作为额外的 multipart 表单字段。来源可单独覆盖同名键。"
+    "hint": "合并进生成请求的 JSON 请求体；编辑时作为额外的 multipart 表单字段。来源可覆盖同名键。"
   },
   "timeout": {
-    "description": "请求超时（秒，全局）",
+    "description": "全局请求超时（秒）",
     "type": "int",
     "default": 300,
     "slider": {
@@ -177,10 +177,10 @@
       "max": 900,
       "step": 10
     },
-    "hint": "来源可单独设置超时覆盖此值。"
+    "hint": "来源单独配置超时时以来源为准。"
   },
   "return_elapsed": {
-    "description": "工具返回请求用时",
+    "description": "工具返回请求耗时",
     "type": "bool",
     "default": false
   },
@@ -190,7 +190,7 @@
     "default": false
   },
   "return_model": {
-    "description": "工具返回使用的模型（来源/模型ID）",
+    "description": "工具返回模型标签",
     "type": "bool",
     "default": false
   },
@@ -198,5 +198,151 @@
     "description": "工具返回重试次数",
     "type": "bool",
     "default": false
+  },
+  "enable_commands": {
+    "description": "启用聊天命令",
+    "type": "bool",
+    "default": true,
+    "hint": "启用后可直接在聊天中以命令生成或编辑图像，不经过 LLM，也不占用对话模型的工具调用轮次。"
+  },
+  "command_prefix": {
+    "description": "命令触发前缀",
+    "type": "string",
+    "default": "/",
+    "hint": "命令头之前的前缀。服务端 wake_prefix 已将其剥离时，插件也会直接识别命令头。"
+  },
+  "command_generation_head": {
+    "description": "图像生成命令头",
+    "type": "list",
+    "default": [
+      "t2i"
+    ],
+    "hint": "可配置多个命令头，例如 t2i、画。命中命令头之后的全部内容均为提示词，支持多行与空格。"
+  },
+  "command_edit_head": {
+    "description": "图像编辑命令头",
+    "type": "list",
+    "default": [
+      "i2i"
+    ],
+    "hint": "可配置多个命令头，例如 i2i、改图。使用时需附带一张图片。"
+  },
+  "command_enable_polish": {
+    "description": "命令提示词润色",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后命令提示词先由下方指定的模型润色，再发送给图像接口。默认不启用。"
+  },
+  "command_polish_provider": {
+    "description": "命令润色模型",
+    "type": "string",
+    "default": "",
+    "hint": "聊天模型提供商 ID，可在服务提供商页面查看。留空时沿用当前会话模型。"
+  },
+  "command_arg_mode": {
+    "description": "追加参数模式",
+    "type": "string",
+    "default": "listed",
+    "options": [
+      "off",
+      "all",
+      "listed"
+    ],
+    "labels": [
+      "禁止追加参数",
+      "允许追加任意参数",
+      "仅允许追加已配置的参数"
+    ],
+    "hint": "off：关闭追加参数，整段文本均作为提示词；all：接受任意 --字段:值；listed：提示词边界与 all 相同，但仅将下方列出的字段传给图像接口，其余字段丢弃。"
+  },
+  "command_allowed_args": {
+    "description": "允许追加的参数字段",
+    "type": "list",
+    "default": [
+      "size"
+    ],
+    "hint": "每行一个字段名，例如 size、quality。仅在追加参数模式为 listed 时生效。"
+  },
+  "access_group_mode": {
+    "description": "群聊名单模式",
+    "type": "string",
+    "default": "off",
+    "options": [
+      "off",
+      "whitelist",
+      "blacklist"
+    ],
+    "labels": [
+      "不限制",
+      "仅白名单可用",
+      "黑名单不可用"
+    ],
+    "hint": "仅对群聊会话生效，私聊不受影响。名单为空时该模式不拦截任何会话。"
+  },
+  "access_group_ids": {
+    "description": "群聊名单",
+    "type": "list",
+    "default": [],
+    "hint": "每行一个群号，与上述模式配合使用。"
+  },
+  "access_user_mode": {
+    "description": "用户名单模式",
+    "type": "string",
+    "default": "off",
+    "options": [
+      "off",
+      "whitelist",
+      "blacklist"
+    ],
+    "labels": [
+      "不限制",
+      "仅白名单可用",
+      "黑名单不可用"
+    ],
+    "hint": "对私聊与群聊中的发送者均生效。名单为空时该模式不拦截任何人。"
+  },
+  "access_user_ids": {
+    "description": "用户名单",
+    "type": "list",
+    "default": [],
+    "hint": "每行一个用户 ID，与上述模式配合使用。"
+  },
+  "quota_daily_limit": {
+    "description": "每人每日调用上限",
+    "type": "int",
+    "default": 0,
+    "hint": "0 表示不限制。命令与 LLM 工具调用均计入额度，每次发起请求计一次。"
+  },
+  "checkin_enabled": {
+    "description": "启用签到补充额度",
+    "type": "bool",
+    "default": false,
+    "hint": "启用后每人每日可通过签到命令额外获得调用次数。"
+  },
+  "checkin_heads": {
+    "description": "签到命令头",
+    "type": "list",
+    "default": [
+      "checkin"
+    ],
+    "hint": "可配置多个命令头，每行一个，与图像生成命令共用触发前缀。"
+  },
+  "checkin_bonus": {
+    "description": "每次签到补充的次数",
+    "type": "int",
+    "default": 1,
+    "hint": "签到成功后额外增加的调用次数。"
+  },
+  "checkin_success": {
+    "description": "签到成功回复",
+    "type": "string",
+    "default": "签到成功，获得 {{count}} 次调用次数，今日剩余 {{remaining}} 次。",
+    "hint": "可用占位符：{{count}} 本次获得次数，{{remaining}} 今日剩余次数，{{limit}} 每日上限。"
+  },
+  "checkin_fail": {
+    "description": "重复签到回复",
+    "type": "string",
+    "default": "今天已经签到过了，明天再来吧。",
+    "hint": "当日已签到时发送的内容，支持与成功回复相同的占位符。"
   }
 }
