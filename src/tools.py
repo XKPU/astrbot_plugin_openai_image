@@ -94,7 +94,10 @@ def build_tools(
                 "type": "string",
                 "description": (
                     "Optional image URL, data URI, or base64 string. Leave "
-                    "empty to use the first image attached to the user's message."
+                    "empty when the current message contains or quotes an image "
+                    "(including QQ replies); the plugin finds it automatically. "
+                    "Current attachments take priority over quoted images, then "
+                    "this explicit parameter."
                 ),
             },
             "mask": {
@@ -110,9 +113,13 @@ def build_tools(
                 name=EDIT_TOOL_NAME,
                 description=(
                     "Edit or transform an existing image using a text prompt "
-                    "with an OpenAI-compatible image API. If the user attached "
-                    "an image and did not provide an image URL, leave the image "
-                    "parameter empty to use the attached image."
+                    "with an OpenAI-compatible image API. Supports images attached "
+                    "to the current message and images in QQ quoted/replied-to "
+                    "messages, including images previously sent by the bot. When "
+                    "the user quotes an image and requests changes, call "
+                    "openai_image_edit. Leave image empty for an attached or "
+                    "quoted image; the plugin finds it automatically. Do not ask "
+                    "the user to re-upload an image they have already quoted."
                 ),
                 parameters={
                     "type": "object",
