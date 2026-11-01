@@ -192,7 +192,7 @@ views/
 - [![qq875871130](https://avatars.githubusercontent.com/u/68939227?s=30) @qq875871130](https://github.com/qq875871130)
   - 引用图片编辑支持与参考图下载安全加固（[#1](https://github.com/XKPU/astrbot_plugin_openai_image/pull/1)）
 
-欢迎通过 Pull 或 Issue 参与改进。
+欢迎通过 Pull Request 或 Issue 参与改进。
 
 ## 许可证
 
