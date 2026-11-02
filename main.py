@@ -29,12 +29,18 @@ from .src.reference_images import (
 )
 from .src.response_utils import error_result, failure, has_image, result_text
 
+# metadata.yaml overrides the decorator name in the star registry, so lookups
+# must use the metadata name. The version is a fallback for the rare case where
+# the registry entry is unavailable.
+PLUGIN_NAME = "astrbot_plugin_openai_image"
+PLUGIN_VERSION = "1.1.2"
+
 
 @register(
-    "openai_image",
+    PLUGIN_NAME,
     "K_PU",
     "可自定义的 OpenAI 兼容图像生成与图像编辑插件",
-    "1.1.1",
+    PLUGIN_VERSION,
 )
 class OpenAIImagePlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -153,6 +159,21 @@ class OpenAIImagePlugin(Star):
             ["GET"],
             "获取可用于润色的聊天模型",
         )
+        self.context.register_web_api(
+            "/astrbot_plugin_openai_image/version",
+            self._web_get_version,
+            ["GET"],
+            "获取插件版本",
+        )
+
+    def _version(self) -> str:
+        """Return the registered plugin version for the dashboard footer."""
+        meta = self.context.get_registered_star(PLUGIN_NAME)
+        version = str(meta.version) if meta and meta.version else ""
+        return version or PLUGIN_VERSION
+
+    async def _web_get_version(self):
+        return {"status": "ok", "data": {"version": self._version()}}
 
     async def _web_list_providers(self):
         """List chat providers that can polish command prompts."""

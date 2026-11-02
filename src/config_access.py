@@ -136,6 +136,26 @@ def _applied_model_order(config: Any) -> list[str]:
     return patterns
 
 
+def _disabled_tags(config: Any) -> list[str]:
+    """Normalize the model_disabled list into tag patterns."""
+    tags: list[str] = []
+    for entry in config.get("model_disabled") or []:
+        if isinstance(entry, dict):
+            entry = entry.get("tag") or entry.get("id") or ""
+        tag = str(entry).strip()
+        if tag and tag not in tags:
+            tags.append(tag)
+    return tags
+
+
+def _is_disabled(tag: str, disabled: list[str]) -> bool:
+    """Report whether a plan tag is switched off by the user."""
+    for pattern in disabled:
+        if tag == pattern or tag.endswith("/" + pattern):
+            return True
+    return False
+
+
 def _apply_model_order(
     plan: list[dict[str, Any]],
     patterns: list[str],
@@ -173,6 +193,7 @@ def model_plan(
     """
     plan: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
+    disabled = _disabled_tags(config)
     for source in sources(config):
         if capability == "generation" and not source["enable_generation"]:
             continue
@@ -183,12 +204,15 @@ def model_plan(
             if key in seen:
                 continue
             seen.add(key)
+            tag = f"{source['name']}/{model['id']}"
+            if _is_disabled(tag, disabled):
+                continue
             plan.append(
                 {
                     "source": source,
                     "model": model["id"],
                     "retries": model["retries"],
-                    "tag": f"{source['name']}/{model['id']}",
+                    "tag": tag,
                 },
             )
     plan = _apply_model_order(plan, _applied_model_order(config))

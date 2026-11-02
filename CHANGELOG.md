@@ -1,5 +1,19 @@
 # Changelog
 
+## [v1.1.2] - 2026-11-02
+
+### 新增
+
+- **模型停用项 `model_disabled`**：新增配置项，填写模型标签即可停用该模型；停用模型不参与调用，但仍保留在模型顺序列表中，便于随时恢复
+
+### 变更
+
+- **可视化配置页重建**：改用 Vue 3 单文件组件（Vite 构建）重建，左侧分组标签页切换，支持跟随面板语言与主题、密钥掩码、模型列表拉取与顺序调整，并新增「放弃未保存修改」
+- **配置页分组重组**：标签页调整为「服务来源 / 模型顺序 / 参数设置 / 工具设置 / 命令设置」，附加提示词并入参数设置，返回信息与功能开关合并为工具设置，区域管理与聊天命令合并为命令设置
+- **模型顺序随来源同步**：模型顺序列表改为随「服务来源」自动同步，只能调整顺序与启用 / 停用模型，不再支持手动增删与改名
+- **命令头留空即禁用**：`command_generation_head` / `command_edit_head` / `checkin_heads` 显式留空时不再回落到默认命令头，对应的图像生成、图像编辑与签到命令随之禁用
+- **插件更名**：显示名称改为「OpenAI 兼容图像生成与编辑」
+
 ## [v1.1.1] - 2026-10-31
 
 ### 新增
@@ -67,6 +81,7 @@
 - `_conf_schema.json` 扩展为多源模板列表格式
 - `metadata.yaml` 更新插件元信息
 
+[v1.1.2]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.1...v1.1.2
 [v1.1.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.0.1...v1.1.0
 [v1.0.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.0.0...v1.0.1

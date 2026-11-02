@@ -1,4 +1,4 @@
-# OpenAI 图像生成与编辑
+# OpenAI 兼容图像生成与编辑
 
 [![Version](https://img.shields.io/github/v/release/XKPU/astrbot_plugin_openai_image?logo=github)](https://github.com/XKPU/astrbot_plugin_openai_image)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-green?logo=data:image/svg+xml;base64,PHN2ZyB0PSIxNzg2ODczMTA1MjgwIiBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHAtaWQ9IjY2MzEiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48cGF0aCBkPSJNNTEyIDE2QzIzOC4wNjYgMTYgMTYgMjM4LjA2NiAxNiA1MTJzMjIyLjA2NiA0OTYgNDk2IDQ5NiA0OTYtMjIyLjA2NiA0OTYtNDk2Uzc4NS45MzQgMTYgNTEyIDE2eiBtMCA4OTZjLTIyMS4wNjQgMC00MDAtMTc4LjkwMi00MDAtNDAwIDAtMjIxLjA2MiAxNzguOTAyLTQwMCA0MDAtNDAwIDIyMS4wNjQgMCA0MDAgMTc4LjkwMiA0MDAgNDAwIDAgMjIxLjA2NC0xNzguOTAyIDQwMC00MDAgNDAweiBtMjE0LjcwMi0yMDIuMTI4Yy0xOS4yMjggMTkuNDI0LTkxLjA2IDgyLjc5Mi0yMDguMTMgODIuNzkyLTE2NC44NiAwLTI4MC45NjgtMTIyLjg1LTI4MC45NjgtMjgzLjEzNCAwLTE1OC4zMDQgMTIwLjU1LTI3OC44MDIgMjc5LjUyNC0yNzguODAyIDExMS4wNjIgMCAxNzcuNDc2IDUzLjI0IDE5NS4xODYgNjkuNTU4YTIzLjkzIDIzLjkzIDAgMCAxIDMuODcyIDMwLjY0NGwtMzYuMzEgNTYuMjI2Yy03LjY4MiAxMS45LTIzLjkzMiAxNC41NjQtMzQuOTk4IDUuODQyLTE3LjE5LTEzLjU1Mi02My42MjgtNDUuMDc2LTEyMy40MTYtNDUuMDc2LTk2LjYwNiAwLTE1NS44MzIgNzAuNjYtMTU1LjgzMiAxNjAuMTY0IDAgODMuMTc4IDUzLjc3NiAxNjcuMzg0IDE1Ni41NTQgMTY3LjM4NCA2NS4zMTQgMCAxMDMuNjg2LTM4LjA3OCAxMzEuNDUyLTU0LjQ1IDEwLjU0LTkuNzE0IDI3LjE5Mi04LjA3OCAzNS42NCAzLjQ3NmwzOS43MyA1NC4zNGEyMy44OTQgMjMuODk0IDAgMCAxLTIuMzA0IDMxLjAzNnoiIGZpbGw9IiNmZmZmZmYiIHAtaWQ9IjY2MzIiPjwvcGF0aD48L3N2Zz4=)](LICENSE)
@@ -70,7 +70,8 @@
 | `extra_request_body` | 全局额外请求体字段 |
 | `timeout` | 全局请求超时（秒，默认 300） |
 | `return_elapsed` / `return_id` / `return_model` / `return_retries` | 工具返回信息开关 |
-| `model_order` | 模型优先顺序，可写 `来源名称/模型ID` 或仅模型 ID |
+| `model_order` | 模型优先顺序，可写 `来源名称/模型ID` 或仅模型 ID；可视化配置页会随「服务来源」自动同步该列表 |
+| `model_disabled` | 停用的模型标签，命中的模型不参与调用，但仍保留在模型顺序列表中 |
 
 ### 模型选择
 
@@ -102,7 +103,7 @@
 | --- | --- |
 | `enable_commands` | 是否启用聊天命令 |
 | `command_prefix` | 命令触发前缀（默认 `/`） |
-| `command_generation_head` / `command_edit_head` | 命令头列表（默认 `["t2i"]` / `["i2i"]`），可配置多个 |
+| `command_generation_head` / `command_edit_head` | 命令头列表（默认 `["t2i"]` / `["i2i"]`），可配置多个；**留空即禁用对应的图像生成或图像编辑命令** |
 | `command_enable_polish` | 是否先由聊天模型润色命令提示词（默认关闭） |
 | `command_polish_provider` | 润色使用的聊天模型提供商 ID，留空时使用当前会话模型 |
 | `command_arg_mode` | 追加参数模式：`off` 禁止追加、`all` 允许任意字段、`listed` 仅允许已配置字段（默认） |
@@ -132,15 +133,27 @@
 
 在管理面板的插件详情中点击「打开视图」进入 `views/config/` 页面，支持：
 
-- 服务来源的增删改、模型排序与多密钥管理（密钥默认掩码显示，可切换明文）
+- 服务来源的增删改、多密钥管理（密钥默认掩码显示，可切换明文）
 - 从接口获取模型列表并批量添加
-- 全局模型调用顺序调整
-- 各来源高级配置与全局参数的表单化编辑
-- 聊天命令开关、多个命令头、命令触发前缀、追加参数模式与润色模型选择
-- 区域管理：群聊 / 用户黑白名单、每日调用上限、签到命令头与自定义回复
-- 右侧导航快速跳转，并跟随面板语言与主题
+- 模型顺序页随「服务来源」自动同步：只能调整顺序、停用某个模型，不支持手动增删
+- 各来源高级配置与全局参数的表单化编辑（附加提示词与生成参数合并到「参数设置」）
+- 「命令设置」合并聊天命令与区域管理：命令开关、多个命令头、触发前缀、追加参数模式、润色模型、群聊 / 用户黑白名单、每日调用上限、签到命令头与自定义回复
+- 「工具设置」合并功能开关与工具返回信息
+- 左侧标签页切换分组，底部提供重新加载、放弃未保存修改与保存配置（后两者仅在有未保存修改时出现）
 
 所有配置通过 Web API（`/astrbot_plugin_openai_image/config`）读写，效果与手动编辑配置文件一致。
+
+页面配色对齐管理面板的 `PurpleTheme` / `PurpleThemeDark`，跟随面板的明暗切换实时更新，无需重载页面。面板下发给插件页面的上下文只包含 `isDark`（写入 `<html data-theme>`），不包含具体色值，因此在「设置」中自定义的主色/辅色不会同步到本页面。
+
+页面由 Vue 3 单文件组件构建，源码位于 `vue/`，构建产物提交在 `views/config/`。修改界面后重新构建：
+
+```bash
+cd vue
+npm install        # 首次执行，安装 vue / @vue/compiler-sfc / esbuild
+node build-nospawn.mjs
+```
+
+`build-nospawn.mjs` 不使用子进程调用打包器，而是先用 `@vue/compiler-sfc` 把 `.vue` 编译到 `.build-tmp/`，再直接运行 `node_modules/@esbuild/win32-x64/esbuild.exe` 打包到 `views/config/assets/`，适合受限环境；具备完整权限时也可直接用 `npx vite build`。
 
 ## 代码结构
 
@@ -156,8 +169,9 @@ src/
   tools.py         # LLM 工具定义
   response_utils.py# 响应解析与图像提取
   web_config.py    # 模板键补写与配置记录
+vue/               # 配置页 Vue 源码与构建脚本
 views/
-  config/          # 可视化配置视图
+  config/          # 可视化配置视图（构建产物）
 ```
 
 常见响应路径：

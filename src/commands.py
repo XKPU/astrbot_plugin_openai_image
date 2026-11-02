@@ -17,7 +17,9 @@ def head_list(value: Any, defaults: tuple[str, ...]) -> list[str]:
     """Normalize a configured command head list.
 
     A plain string is accepted for configurations written before multiple
-    heads were supported; entries are separated by commas or newlines.
+    heads were supported; entries are separated by commas or newlines. A
+    missing setting falls back to the default heads; an explicitly empty
+    list disables the command.
     """
     if isinstance(value, str):
         value = value.replace(",", "\n").splitlines()
@@ -28,7 +30,7 @@ def head_list(value: Any, defaults: tuple[str, ...]) -> list[str]:
         head = str(entry).strip()
         if head and head.lower() not in {item.lower() for item in heads}:
             heads.append(head)
-    return heads or list(defaults)
+    return heads
 
 
 def _name_list(value: Any) -> list[str]:
