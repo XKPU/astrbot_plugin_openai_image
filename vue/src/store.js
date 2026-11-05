@@ -152,7 +152,12 @@ export async function loadAll() {
       apiGet("version").catch(() => null),
     ]);
     const configData = pick(config);
-    if (configData) applyConfig(configData);
+    if (!configData) {
+      // Keep the current form instead of blanking it on a failed read.
+      showAlert("err", t("loadEmpty"));
+      return;
+    }
+    applyConfig(configData);
     const providerData = pick(providers);
     store.providers = (providerData && providerData.providers) || [];
     const versionData = pick(version);

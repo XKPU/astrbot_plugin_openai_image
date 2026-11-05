@@ -1,5 +1,12 @@
 # Changelog
 
+## [v1.1.3] - 2026-11-05
+
+### 修复
+
+- **重新加载不读磁盘**：可视化配置页的「重新加载」此前返回进程内配置快照，配置文件被声明式配置页或手工修改后仍显示旧值；现在先从 `config_path` 重新读取，内容变化时重建 LLM 工具
+- **加载失败提示**：读取配置失败时不再静默清空表单，改为显示错误提示
+
 ## [v1.1.2] - 2026-11-02
 
 ### 新增
@@ -81,6 +88,7 @@
 - `_conf_schema.json` 扩展为多源模板列表格式
 - `metadata.yaml` 更新插件元信息
 
+[v1.1.3]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.2...v1.1.3
 [v1.1.2]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.1...v1.1.2
 [v1.1.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.0.1...v1.1.0

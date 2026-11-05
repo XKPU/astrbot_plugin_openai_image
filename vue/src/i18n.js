@@ -115,6 +115,7 @@ const I18N = {
     checkinHint:
       "回复可使用占位符：{{count}} 本次获得次数、{{remaining}} 今日剩余次数、{{limit}} 每日上限。签到命令与图像生成命令共用触发前缀。",
     loadFailed: "加载配置失败：",
+    loadEmpty: "没有读取到配置，请检查后端日志。",
     saveFailed: "保存失败：",
     saved: "配置已保存，工具已重新加载。",
     invalidJson: "「额外请求体字段」不是有效的 JSON。",
@@ -230,6 +231,7 @@ const I18N = {
     checkinHint:
       "Replies support {{count}} (granted calls), {{remaining}} (left today) and {{limit}} (daily limit). Check-in shares the command trigger prefix.",
     loadFailed: "Failed to load config: ",
+    loadEmpty: "No config was returned. Check the backend log.",
     saveFailed: "Save failed: ",
     saved: "Config saved and tools reloaded.",
     invalidJson: "The extra request body fields are not valid JSON.",

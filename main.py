@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from mcp import types as mcp_types
@@ -33,7 +34,7 @@ from .src.response_utils import error_result, failure, has_image, result_text
 # must use the metadata name. The version is a fallback for the rare case where
 # the registry entry is unavailable.
 PLUGIN_NAME = "astrbot_plugin_openai_image"
-PLUGIN_VERSION = "1.1.2"
+PLUGIN_VERSION = "1.1.3"
 
 
 @register(
@@ -206,7 +207,44 @@ class OpenAIImagePlugin(Star):
             return {"status": "error", "message": str(exc), "data": {}}
         return {"status": "ok", "data": {"models": models}}
 
+    def _reload_config_from_disk(self) -> bool:
+        """Re-read the config file so external edits become visible.
+
+        AstrBotConfig loads its file only in ``__init__`` and exposes no reload
+        helper, so the visual config page would otherwise keep serving the
+        in-memory copy after the declarative page or a manual edit rewrote it.
+
+        Returns:
+            True when the in-memory config changed and tools need rebuilding.
+        """
+        path = getattr(self.config, "config_path", "")
+        if not path or not Path(path).is_file():
+            return False
+        try:
+            with open(path, encoding="utf-8-sig") as handle:
+                data = json.load(handle)
+        except (OSError, ValueError) as exc:
+            logger.warning("Config reload failed, keeping the in-memory copy: %s", exc)
+            return False
+        if not isinstance(data, dict):
+            logger.warning("Config file is not a JSON object, keeping in-memory copy.")
+            return False
+        # Stamp the template key before comparing, otherwise the stamped
+        # in-memory copy would differ from the file on every request and the
+        # tools would be rebuilt each time the page is opened.
+        web_config.ensure_template_keys(data)
+        if data == dict(self.config):
+            return False
+        self.config.clear()
+        self.config.update(data)
+        logger.info("Config reloaded from disk: %s", path)
+        return True
+
     async def _web_get_config(self):
+        # Rebuild the tools when the file changed elsewhere, so the page and
+        # the LLM tools always describe the same configuration.
+        if self._reload_config_from_disk():
+            await self.initialize()
         return {"status": "ok", "data": dict(self.config)}
 
     async def _web_save_config(self):
@@ -249,10 +287,10 @@ class OpenAIImagePlugin(Star):
                             continue
                         try:
                             found.append(await read_component_image(component))
-                            logger.debug("%s提取成功", label)
+                            logger.debug("%s extracted", label)
                         except ReferenceImageError as exc:
                             errors.append(f"{label}: {exc}")
-                            logger.debug("%s提取失败：%s", label, exc)
+                            logger.debug("%s extraction failed: %s", label, exc)
 
                 # Only inspect text contained in Reply; never scan user input.
                 seen_urls: set[str] = set()
@@ -277,10 +315,10 @@ class OpenAIImagePlugin(Star):
                                         "引用附件只支持 HTTP(S) 图片链接。"
                                     )
                                 found.append(await read_image(url))
-                                logger.debug("QQ 引用附件文字解析成功，图片已读取")
+                                logger.debug("Reply attachment image read")
                             except ReferenceImageError as exc:
                                 errors.append("引用附件中的图片无法读取")
-                                logger.debug("QQ 引用附件图片读取失败：%s", exc)
+                                logger.debug("Reply attachment image failed: %s", exc)
         except TimeoutError:
             raise ReferenceImageError(
                 "提取图片超时，请减少引用图片数量或改用更快可访问的图片。"
@@ -289,7 +327,8 @@ class OpenAIImagePlugin(Star):
             return found
         if errors:
             logger.error(
-                "openai_image: 参考图提取失败：%s", "；".join(dict.fromkeys(errors))
+                "openai_image: reference image extraction failed: %s",
+                "；".join(dict.fromkeys(errors)),
             )
             raise ReferenceImageError(
                 "未获得有效参考图；请直接附图、引用包含图片的消息，"
@@ -313,7 +352,7 @@ class OpenAIImagePlugin(Star):
         try:
             await self._run_image_command(event)
         except Exception as exc:
-            logger.error("openai_image: 命令处理失败: %r", exc)
+            logger.error("openai_image: command handling failed: %r", exc)
             if event.is_at_or_wake_command:
                 await event.send(
                     event.plain_result("请求失败，请稍后重试或联系管理员查看日志。"),
@@ -397,7 +436,7 @@ class OpenAIImagePlugin(Star):
                 )
         except Exception as exc:
             gate.settle(False)
-            logger.error("openai_image: 命令处理失败: %r", exc)
+            logger.error("openai_image: command handling failed: %r", exc)
             await event.send(
                 event.plain_result("请求失败，请稍后重试或联系管理员查看日志。"),
             )
@@ -561,7 +600,7 @@ class OpenAIImagePlugin(Star):
                         sources.append(await read_image(value))
                     except ReferenceImageError as exc:
                         errors.append(str(exc))
-                        logger.debug("显式参考图片读取失败：%s", exc)
+                        logger.debug("Explicit reference image read failed: %s", exc)
             if not sources:
                 detail = (
                     "；".join(errors)
@@ -573,7 +612,7 @@ class OpenAIImagePlugin(Star):
                 try:
                     mask = await read_image(mask)
                 except ReferenceImageError as exc:
-                    logger.debug("编辑蒙版读取失败：%s", exc)
+                    logger.debug("Edit mask read failed: %s", exc)
                     return failure("编辑蒙版无效，未调用图片编辑 API。", exc)
             result = await api_client.edit_image(
                 self.config,
