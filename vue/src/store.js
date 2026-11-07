@@ -36,6 +36,7 @@ export const DEFAULT_CONFIG = {
   access_user_mode: "off",
   access_user_ids: [],
   quota_daily_limit: 0,
+  quota_exempt_user_ids: [],
   checkin_enabled: false,
   checkin_heads: ["checkin"],
   checkin_bonus: 1,

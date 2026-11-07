@@ -50,8 +50,8 @@ def access_settings(config: Any) -> dict[str, Any]:
         config: The plugin configuration mapping.
 
     Returns:
-        A dict with group/user list modes and ids, the daily limit and the
-        check-in switches, bonus and reply templates.
+        A dict with group/user list modes and ids, the daily limit, the ids
+        exempt from it and the check-in switches, bonus and reply templates.
     """
     return {
         "group_mode": _mode(config.get("access_group_mode")),
@@ -59,6 +59,7 @@ def access_settings(config: Any) -> dict[str, Any]:
         "user_mode": _mode(config.get("access_user_mode")),
         "user_ids": _id_list(config.get("access_user_ids")),
         "daily_limit": max(int(config.get("quota_daily_limit") or 0), 0),
+        "exempt_user_ids": _id_list(config.get("quota_exempt_user_ids")),
         "checkin_enabled": bool(config.get("checkin_enabled", False)),
         "checkin_heads": head_list(config.get("checkin_heads"), DEFAULT_CHECKIN_HEADS),
         "checkin_bonus": max(int(config.get("checkin_bonus") or 0), 0),

@@ -319,6 +319,16 @@
     "default": 0,
     "hint": "0 表示不限制。命令与 LLM 工具调用均计入额度，每次发起请求计一次。"
   },
+  "quota_exempt_user_ids": {
+    "description": "不限次数的用户",
+    "type": "list",
+    "default": [],
+    "_special": "sender_id",
+    "items": {
+      "type": "string"
+    },
+    "hint": "名单内的用户不受每日上限约束，也不消耗额度。点击右侧按钮可从已知用户中可视化选择。"
+  },
   "checkin_enabled": {
     "description": "启用签到补充额度",
     "type": "bool",

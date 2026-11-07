@@ -94,6 +94,7 @@ export function collectConfig(config) {
       access_group_ids: normalizeList(config.access_group_ids, []),
       access_user_ids: normalizeList(config.access_user_ids, []),
       quota_daily_limit: parseInt(config.quota_daily_limit, 10) || 0,
+      quota_exempt_user_ids: normalizeList(config.quota_exempt_user_ids, []),
       checkin_enabled: !!config.checkin_enabled,
       checkin_heads: normalizeList(config.checkin_heads, []),
       checkin_bonus: parseInt(config.checkin_bonus, 10) || 0,

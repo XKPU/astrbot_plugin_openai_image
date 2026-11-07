@@ -34,7 +34,7 @@ from .src.response_utils import error_result, failure, has_image, result_text
 # must use the metadata name. The version is a fallback for the rare case where
 # the registry entry is unavailable.
 PLUGIN_NAME = "astrbot_plugin_openai_image"
-PLUGIN_VERSION = "1.1.3"
+PLUGIN_VERSION = "1.1.4"
 
 
 @register(
@@ -67,7 +67,7 @@ class OpenAIImagePlugin(Star):
     def _quota_denial(self, event: AstrMessageEvent) -> str:
         """Return the quota message when no daily call is left, else empty."""
         settings = access_utils.access_settings(self.config)
-        limit = settings["daily_limit"]
+        limit = self._daily_limit(event, settings)
         if limit <= 0:
             return ""
         key = self._caller_key(event)
@@ -82,8 +82,18 @@ class OpenAIImagePlugin(Star):
         return access_utils.QuotaGate(
             self._quota,
             self._caller_key(event),
-            settings["daily_limit"],
+            self._daily_limit(event, settings),
         )
+
+    def _daily_limit(self, event: AstrMessageEvent, settings: dict) -> int:
+        """Return the daily limit of the sender, or 0 when unlimited.
+
+        Senders listed in ``quota_exempt_user_ids`` are never charged, so they
+        are reported as unlimited and both the pre-check and the gate pass.
+        """
+        if event is not None and event.get_sender_id() in settings["exempt_user_ids"]:
+            return 0
+        return settings["daily_limit"]
 
     async def initialize(self) -> None:
         # Stamp the template key so the declarative settings page accepts
@@ -166,6 +176,12 @@ class OpenAIImagePlugin(Star):
             ["GET"],
             "获取插件版本",
         )
+        self.context.register_web_api(
+            "/astrbot_plugin_openai_image/senders",
+            self._web_search_senders,
+            ["GET"],
+            "搜索已知用户与群聊",
+        )
 
     def _version(self) -> str:
         """Return the registered plugin version for the dashboard footer."""
@@ -188,6 +204,36 @@ class OpenAIImagePlugin(Star):
             label = f"{meta.id} ({meta.model})" if meta.model else meta.id
             options.append({"id": meta.id, "label": label})
         return {"status": "ok", "data": {"providers": options}}
+
+    async def _web_search_senders(self):
+        """Return known senders so the config page can pick ids visually."""
+        query = web_request.query
+        search = str(query.get("search") or "").strip()
+        raw_limit = query.get("limit", 50, int) or 50
+        limit = max(1, min(raw_limit, 100))
+        ids = [
+            item
+            for item in query.getlist("sender_ids") + query.getlist("sender_ids[]")
+            if item
+        ]
+        records = await self.context.get_db().get_umo_senders(
+            search=search,
+            limit=limit,
+            sender_ids=ids or None,
+        )
+        senders = []
+        for sender, _alias in records:
+            sender_id = str(sender.sender_id or "")
+            if not sender_id:
+                continue
+            senders.append(
+                {
+                    "sender_id": sender_id,
+                    "sender_name": str(sender.sender_name or ""),
+                    "platform": str(sender.umo or "").split(":", 1)[0],
+                }
+            )
+        return {"status": "ok", "data": {"senders": senders}}
 
     async def _web_list_models(self):
         body = await web_request.json(default=None)
@@ -503,7 +549,7 @@ class OpenAIImagePlugin(Star):
         if denial:
             await event.send(event.plain_result(denial))
             return
-        limit = settings["daily_limit"]
+        limit = self._daily_limit(event, settings)
         checked_now, granted, remaining = self._quota.checkin(
             self._caller_key(event),
             settings["checkin_bonus"],

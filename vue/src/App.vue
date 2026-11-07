@@ -55,6 +55,7 @@
       <ParamsTab v-show="store.tab === 'params'" />
       <ToolsTab v-show="store.tab === 'tools'" />
       <CommandsTab v-show="store.tab === 'commands'" />
+      <LimitsTab v-show="store.tab === 'limits'" />
 
       <datalist id="provider-list">
         <option v-for="provider in store.providers" :key="provider.id" :value="provider.id">
@@ -75,6 +76,7 @@ import ModelOrderTab from "./tabs/ModelOrderTab.vue";
 import ParamsTab from "./tabs/ParamsTab.vue";
 import ToolsTab from "./tabs/ToolsTab.vue";
 import CommandsTab from "./tabs/CommandsTab.vue";
+import LimitsTab from "./tabs/LimitsTab.vue";
 
 const tabs = [
   { id: "sources", label: "tabSources" },
@@ -82,6 +84,7 @@ const tabs = [
   { id: "params", label: "tabParams" },
   { id: "tools", label: "tabTools" },
   { id: "commands", label: "tabCommands" },
+  { id: "limits", label: "tabLimits" },
 ];
 
 function discard() {

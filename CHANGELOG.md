@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.1.4] - 2026-11-07
+
+### 新增
+
+- **不限次数的用户名单**：名单内的发送者不受每日调用上限约束、也不消耗额度。声明式配置页借助 `_special: "sender_id"` 直接使用面板自带的用户选择对话框；可视化配置页新增「选择用户」按钮，复用同一个用户搜索接口做可视化选择；在可视化选择对话框里搜索不到目标用户时，可直接把输入内容作为 ID 添加（按钮或回车）
+
+### 变更
+
+- **「使用限制」独立标签页**：访问控制（群聊/用户黑白名单）与额度、签到从「命令设置」拆出
+
 ## [v1.1.3] - 2026-11-05
 
 ### 修复
@@ -88,6 +98,7 @@
 - `_conf_schema.json` 扩展为多源模板列表格式
 - `metadata.yaml` 更新插件元信息
 
+[v1.1.4]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.3...v1.1.4
 [v1.1.3]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.2...v1.1.3
 [v1.1.2]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.1...v1.1.2
 [v1.1.1]: https://github.com/XKPU/astrbot_plugin_openai_image/compare/v1.1.0...v1.1.1
